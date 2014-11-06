@@ -1,2 +1,5 @@
 /* NPM Modules */
 **/node_modules
+
+/* Test Dependencies */
+**/tests/libs

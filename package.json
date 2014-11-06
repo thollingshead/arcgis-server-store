@@ -7,7 +7,9 @@
 	"dependencies": {
 		"grunt": "*",
 		"grunt-contrib-jshint": "0.x.x",
-		"grunt-contrib-watch": "0.x.x"
-	},
-	"engine": "node >= 0.10"
+		"grunt-contrib-watch": "0.x.x",
+		"grunt-bower-install-simple": "0.x.x",
+		"grunt-esri-slurp": "^0.6.3",
+		"intern": ">=2.1.0"
+	}
 }
