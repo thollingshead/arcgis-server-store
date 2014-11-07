@@ -1,10 +1,11 @@
 define([
+	'dojo/_base/array',
 	'dojo/_base/declare',
 	'dojo/_base/lang',
 
 	'esri/request'
 ], function(
-	declare, lang,
+	array, declare, lang,
 	esriRequest
 ) {
 
@@ -12,7 +13,13 @@ define([
 		idProperty: 'OBJECTID',
 		queryEngine: null,
 
+		loaded: false,
+		returnGeometry: true,
+
 		constructor: function(options) {
+			// Initialize outFields
+			this.outFields = ['*'];
+
 			// Mixin Options
 			declare.safeMixin(this, options);
 
@@ -121,7 +128,51 @@ define([
 		 * @param  {Object} serviceInfo service information
 		 */
 		_initStore: function(serviceInfo) {
+			// Validate idProperty
+			var validIdProperty = false;
+			if (this.idProperty) {
+				validIdProperty = array.some(serviceInfo.fields, lang.hitch(this, function(field) {
+					return field.name === this.idProperty;
+				}));
+			}
+			if (!validIdProperty) {
+				if (serviceInfo.objectIdField) {
+					this.idProperty = serviceInfo.objectIdField;
+				} else {
+					array.some(serviceInfo.fields, lang.hitch(this, function(field) {
+						if (field.type === 'esriFieldTypeOID') {
+							this.idProperty = field.name;
+						}
+					}));
+				}
+			}
 
+			// Validate outFields
+			if (this.outFields.length && this.outFields[0] !== '*') {
+				this.outFields = array.filter(this.outFields, function(fieldName) {
+					return array.some(serviceInfo.fields, function(field) {
+						return field.name === fieldName;
+					});
+				});
+
+				// Add idProperty
+				if (array.indexOf(this.outFields, this.idProperty) === -1) {
+					this.outFields.push(this.idProperty);
+				}
+			} else {
+				this.outFields = ['*'];
+			}
+
+			// Capabilities
+			if (serviceInfo.capabilities) {
+				var capabilities = serviceInfo.capabilities.split(',');
+				array.forEach(capabilities, lang.hitch(this, function(capability) {
+					this.capabilities[capability] = true;
+				}));
+			}
+
+			// Set loaded
+			this.loaded = true;
 		}
 	});
 });
