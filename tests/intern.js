@@ -5,6 +5,7 @@ define([
 ) {
 	return {
 		reporters: ['console', 'html'],
+
 		loader: {
 			async: true,
 			packages: [{
@@ -21,7 +22,7 @@ define([
 				location: 'tests/libs/dojox'
 			}, {
 				name: 'esri',
-				location: 'tests/libs/3.10/js/esri'
+				location: 'tests/libs/esri'
 			}, {
 				name: 'put-selector',
 				location: 'tests/libs/put-selector'
