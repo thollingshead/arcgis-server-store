@@ -29,7 +29,12 @@ define([
 			}, {
 				name: 'xstyle',
 				location: 'tests/libs/xstyle'
-			}]
+			}],
+			map: {
+				'*': {
+					'esri/request': 'tests/mocking/request'
+				}
+			}
 		},
 
 		suites: ['tests/ArcGISServerStore'],

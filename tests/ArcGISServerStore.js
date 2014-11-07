@@ -1,19 +1,33 @@
 define([
-	'intern!object',
-	'intern/chai!assert',
+	'../ArcGISServerStore',
 
-	'../ArcGISServerStore'
+	'./mocking/MockMapService',
+
+	'intern!object',
+	'intern/chai!assert'
 ], function(
-	registerSuite, assert,
-	ArcGISServerStore
+	ArcGISServerStore,
+	MockMapService,
+	registerSuite, assert
 ) {
-	var store;
+	var url = 'http://localhost/arcgis/rest/services/Mock/MapServer/0';
 	registerSuite({
 		name: 'constructor',
 		setup: function() {
-			store = new ArcGISServerStore({});
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		beforeEach: function() {
+			MockMapService.reset();
 		},
 		idProperty: function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: url
+			});
+
 			assert.strictEqual(store.idProperty, 'OBJECTID', 'Default idProperty is OBJECTID');
 		}
 	});
