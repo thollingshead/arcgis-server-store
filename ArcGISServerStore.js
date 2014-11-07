@@ -1,7 +1,11 @@
 define([
-	'dojo/_base/declare'
+	'dojo/_base/declare',
+	'dojo/_base/lang',
+
+	'esri/request'
 ], function(
-	declare
+	declare, lang,
+	esriRequest
 ) {
 
 	return declare(null, {
@@ -9,7 +13,32 @@ define([
 		queryEngine: null,
 
 		constructor: function(options) {
+			// Mixin Options
+			declare.safeMixin(this, options);
 
+			// Initialize Capabilities
+			this.capabilities = {
+				Query: false,
+				Create: false,
+				Delete: false,
+				Update: false,
+				Editing: false
+			};
+
+			// Get Service Info
+			if (this.url) {
+				esriRequest({
+					url: this.url,
+					content: {
+						f: 'json'
+					},
+					handleAs: 'json'
+				}).then(lang.hitch(this, '_initStore'), function(error) {
+					throw new Error('Invalid url. Cannot create store.');
+				});
+			} else {
+				throw new Error('Missing required property: \'url\'');
+			}
 		},
 		/**
 		 * Retrieves and object by its identity
@@ -85,6 +114,13 @@ define([
 		 * @return {Object}
 		 */
 		getMetadata: function(object) {
+
+		},
+		/**
+		 * Initializes store with ArcGIS service information
+		 * @param  {Object} serviceInfo service information
+		 */
+		_initStore: function(serviceInfo) {
 
 		}
 	});
