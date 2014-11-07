@@ -2,7 +2,7 @@ module.exports = function(grunt) {
 	// Configure Tasks
 	grunt.initConfig({
 		jshint: {
-			src: ['*.js', '!Gruntfile.js'],
+			src: ['*.js', 'tests/*.js', 'tests/mocking/*.js', '!Gruntfile.js'],
 			options: {
 				jshintrc: '.jshintrc'
 			}
