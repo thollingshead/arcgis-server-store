@@ -4,15 +4,11 @@ define([
 	'./mocking/MockFeatureService',
 	'./mocking/MockMapService',
 
-	'dojo/aspect',
-	'dojo/store/util/SimpleQueryEngine',
-
 	'intern!object',
 	'intern/chai!assert'
 ], function(
 	ArcGISServerStore,
 	MockFeatureService, MockMapService,
-	aspect, SimpleQueryEngine,
 	registerSuite, assert
 ) {
 	var mapService = 'http://localhost/arcgis/rest/services/Mock/MapServer/0';
@@ -36,8 +32,8 @@ define([
 
 			// Test
 			assert.strictEqual(store.idProperty, 'OBJECTID', 'Default idProperty is OBJECTID');
-			assert.isNull(store.queryEngine, 'Default queryEngine is null');
-			assert.isFalse(store.loaded, 'Should not be loaded until initialized');
+			assert.isUndefined(store._loaded, 'Should not be loaded until initialized');
+			assert.isTrue(store.flatten, 'Flatten attributes by default');
 			assert.isTrue(store.returnGeometry, 'Return geometry by default');
 			assert.isArray(store.outFields, 'outFields should be an array by default');
 			assert.sameMembers(store.outFields, ['*'], 'outFields should default to all fields');
@@ -47,14 +43,14 @@ define([
 			var mixinStore = new ArcGISServerStore({
 				url: 'Test Url',
 				idProperty: 'setIdProperty',
-				queryEngine: SimpleQueryEngine,
+				flatten: false,
 				returnGeometry: false,
 				outFields: ['NAME']
 			});
 
 			// Test
 			assert.strictEqual(mixinStore.idProperty, 'setIdProperty', 'Default idProperty should be overidden');
-			assert.strictEqual(mixinStore.queryEngine, SimpleQueryEngine, 'Default queryEngine should be overidden');
+			assert.isFalse(mixinStore.flatten, 'Default flatten should be overidden');
 			assert.strictEqual(mixinStore.url, 'Test Url', 'Url should be initialized from options');
 			assert.isFalse(mixinStore.returnGeometry, 'Default returnGeometry should be overidden');
 			assert.sameMembers(mixinStore.outFields, ['NAME'], 'Default outFields should be overidden');
@@ -187,7 +183,7 @@ define([
 
 			setTimeout(function() {
 				dfd.callback(function() {
-					assert.isTrue(store.loaded, 'Set loaded property after initialization');
+					assert.isTrue(store._loaded, 'Set loaded property after initialization');
 				})();
 			}, 0);
 		}

@@ -10,10 +10,21 @@ define([
 ) {
 
 	return declare(null, {
+		/**
+		 * Identity property. Values should be unique
+		 * @type {String}
+		 */
 		idProperty: 'OBJECTID',
-		queryEngine: null,
 
-		loaded: false,
+		/**
+		 * Flatten attributes to top-level object
+		 * @type {Boolean}
+		 */
+		flatten: true,
+		/**
+		 * Include geometry in data
+		 * @type {Boolean}
+		 */
 		returnGeometry: true,
 
 		constructor: function(options) {
@@ -172,7 +183,7 @@ define([
 			}
 
 			// Set loaded
-			this.loaded = true;
+			this._loaded = true;
 		}
 	});
 });
