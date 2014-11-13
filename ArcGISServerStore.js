@@ -69,10 +69,10 @@ define([
 		/**
 		 * Return an object's identity
 		 * @param  {Object} object The object to get the identity from
-		 * @return {Number}
+		 * @return {Number|String}
 		 */
 		getIdentity: function(object) {
-
+			return this.flatten ? object[this.idProperty] : lang.getObject('attributes.' + this.idProperty, false, object);
 		},
 		/**
 		 * Stores an object

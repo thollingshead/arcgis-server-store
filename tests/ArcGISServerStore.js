@@ -309,4 +309,61 @@ define([
 			assert.deepEqual(someFieldsStore._unflatten(flattened), someFeature, 'Should only flatten outFields');
 		}
 	});
+
+	registerSuite({
+		name: 'getIdentity',
+		setup: function() {
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		'identity in attributes': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService,
+				idProperty: 'NAME',
+				flatten: false
+			});
+
+			var id = 'TestingID';
+			var object = {
+				geometry: {
+					x: 0,
+					y: 0
+				},
+				attributes: {
+					ESRI_OID: -1,
+					NAME: id,
+					CATEGORY: '',
+					DETAILS: ''
+				}
+			};
+
+			// Test
+			assert.strictEqual(store.getIdentity(object), id, 'Should retrieve id property from attributes');
+		},
+		'identity in object': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService,
+				idProperty: 'ESRI_OID'
+			});
+
+			var id = 4;
+			var object = {
+				ESRI_OID: id,
+				NAME: '',
+				CATEGORY: '',
+				DETAILS: '',
+				geometry: {
+					x: 0,
+					y: 0
+				}
+			};
+
+			// Test
+			assert.strictEqual(store.getIdentity(object), id, 'Should retrieve id property from object');
+		}
+	});
 });
