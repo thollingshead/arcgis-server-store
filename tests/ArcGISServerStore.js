@@ -4,11 +4,14 @@ define([
 	'./mocking/MockFeatureService',
 	'./mocking/MockMapService',
 
+	'dojo/_base/lang',
+
 	'intern!object',
 	'intern/chai!assert'
 ], function(
 	ArcGISServerStore,
 	MockFeatureService, MockMapService,
+	lang,
 	registerSuite, assert
 ) {
 	var mapService = 'http://localhost/arcgis/rest/services/Mock/MapServer/0';
@@ -188,4 +191,45 @@ define([
 			}, 0);
 		}
 	});
+
+	registerSuite({
+		name: '_flatten',
+		setup: function() {
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		'flatten attributes': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var attributes = {
+				ESRI_OID: 4,
+				NAME: 'Test Name',
+				CATEGORY: 'Test Category',
+				DETAILS: 'Test Details'
+			};
+
+			var geometry = {
+				x: 4,
+				y: 14
+			};
+
+			var feature = {
+				attributes: lang.clone(attributes),
+				geometry: lang.clone(geometry)
+			};
+
+			var flattened = lang.clone(attributes);
+			flattened.geometry = geometry;
+
+			// Test
+			assert.deepEqual(store._flatten(feature), flattened, 'Should flatten attributes to top-level object');
+			assert.deepEqual(store._flatten(lang.clone(flattened)), flattened, 'Should not modify already flattened feature');
+		}
+	});
+
 });

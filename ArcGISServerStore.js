@@ -135,6 +135,19 @@ define([
 
 		},
 		/**
+		 * Flatten attributes to top-level object
+		 * @param  {Object} object Object to flatten
+		 * @return {Object}        Flattened object
+		 */
+		_flatten: function(object) {
+			if (object.attributes) {
+				object = lang.mixin(object, object.attributes);
+				delete object.attributes;
+			}
+
+			return object;
+		},
+		/**
 		 * Initializes store with ArcGIS service information
 		 * @param  {Object} serviceInfo service information
 		 */
