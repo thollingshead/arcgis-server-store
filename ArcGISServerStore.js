@@ -148,6 +148,31 @@ define([
 			return object;
 		},
 		/**
+		 * Unflatten attributes to ArcGIS Server structure
+		 * @param  {Object} object Object to unflatten
+		 * @return {Object}        Unflattened object
+		 */
+		_unflatten: function(object) {
+			var field, fields;
+
+			if (this.outFields.length && this.outFields[0] !== '*') {
+				fields = this.outFields;
+			} else {
+				fields = array.map(this._serviceInfo.fields, function(field) {
+					return field.name;
+				});
+			}
+
+			for (field in object) {
+				if (object.hasOwnProperty(field) && array.indexOf(fields, field) !== -1) {
+					lang.setObject('attributes.' + field, object[field], object);
+					delete object[field];
+				}
+			}
+
+			return object;
+		},
+		/**
 		 * Initializes store with ArcGIS service information
 		 * @param  {Object} serviceInfo service information
 		 */
@@ -194,6 +219,9 @@ define([
 					this.capabilities[capability] = true;
 				}));
 			}
+
+			// Save service info
+			this._serviceInfo = serviceInfo;
 
 			// Set loaded
 			this._loaded = true;

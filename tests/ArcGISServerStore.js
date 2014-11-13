@@ -176,6 +176,21 @@ define([
 				})();
 			}, 0);
 		},
+		'store service info': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			setTimeout(function() {
+				dfd.callback(function() {
+					assert.isDefined(store._serviceInfo, 'Should store service info');
+				})();
+			}, 0);
+		},
 		'set loaded': function() {
 			// Setup
 			var dfd = this.async(1000);
@@ -232,4 +247,66 @@ define([
 		}
 	});
 
+	registerSuite({
+		name: '_unflatten',
+		setup: function() {
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		'unflatten attributes': function() {
+			// Setup
+			var someFieldsStore = new ArcGISServerStore({
+				url: mapService,
+				outFields: ['ESRI_OID', 'NAME']
+			});
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var someAttributes = {
+				ESRI_OID: 4,
+				NAME: 'Test Name'
+			};
+			var otherAttributes = {
+				CATEGORY: 'Test Category',
+				DETAILS: 'Test Details'
+			};
+			var attributes = lang.mixin(lang.clone(someAttributes), lang.clone(otherAttributes));
+
+			var geometry = {
+				x: 4,
+				y: 14
+			};
+
+			var symbol = {
+				radius: 5,
+				type: 'esriSMS',
+				color: [0, 0, 0, 0.75]
+			};
+
+			var flattened = lang.clone(attributes);
+			flattened.geometry = lang.clone(geometry);
+			flattened.symbol = lang.clone(symbol);
+
+			var someFeature = lang.mixin(lang.clone(otherAttributes), {
+				attributes: lang.clone(someAttributes),
+				geometry: lang.clone(geometry),
+				symbol: lang.clone(symbol)
+			});
+
+			var feature = {
+				attributes: lang.clone(attributes),
+				geometry: lang.clone(geometry),
+				symbol: lang.clone(symbol)
+			};
+
+			// Test
+			assert.deepEqual(store._unflatten(lang.clone(flattened)), feature, 'Should unflatten attributes to attributes property');
+			assert.deepEqual(store._unflatten(lang.clone(feature)), feature, 'Should not modify already unflattened feature');
+			assert.deepEqual(someFieldsStore._unflatten(flattened), someFeature, 'Should only flatten outFields');
+		}
+	});
 });
