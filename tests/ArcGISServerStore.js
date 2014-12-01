@@ -4,11 +4,14 @@ define([
 	'./mocking/MockFeatureService',
 	'./mocking/MockMapService',
 
+	'dojo/_base/lang',
+
 	'intern!object',
 	'intern/chai!assert'
 ], function(
 	ArcGISServerStore,
 	MockFeatureService, MockMapService,
+	lang,
 	registerSuite, assert
 ) {
 	var mapService = 'http://localhost/arcgis/rest/services/Mock/MapServer/0';
@@ -173,6 +176,21 @@ define([
 				})();
 			}, 0);
 		},
+		'store service info': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			setTimeout(function() {
+				dfd.callback(function() {
+					assert.isDefined(store._serviceInfo, 'Should store service info');
+				})();
+			}, 0);
+		},
 		'set loaded': function() {
 			// Setup
 			var dfd = this.async(1000);
@@ -186,6 +204,166 @@ define([
 					assert.isTrue(store._loaded, 'Set loaded property after initialization');
 				})();
 			}, 0);
+		}
+	});
+
+	registerSuite({
+		name: '_flatten',
+		setup: function() {
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		'flatten attributes': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var attributes = {
+				ESRI_OID: 4,
+				NAME: 'Test Name',
+				CATEGORY: 'Test Category',
+				DETAILS: 'Test Details'
+			};
+
+			var geometry = {
+				x: 4,
+				y: 14
+			};
+
+			var feature = {
+				attributes: lang.clone(attributes),
+				geometry: lang.clone(geometry)
+			};
+
+			var flattened = lang.clone(attributes);
+			flattened.geometry = geometry;
+
+			// Test
+			assert.deepEqual(store._flatten(feature), flattened, 'Should flatten attributes to top-level object');
+			assert.deepEqual(store._flatten(lang.clone(flattened)), flattened, 'Should not modify already flattened feature');
+		}
+	});
+
+	registerSuite({
+		name: '_unflatten',
+		setup: function() {
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		'unflatten attributes': function() {
+			// Setup
+			var someFieldsStore = new ArcGISServerStore({
+				url: mapService,
+				outFields: ['ESRI_OID', 'NAME']
+			});
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var someAttributes = {
+				ESRI_OID: 4,
+				NAME: 'Test Name'
+			};
+			var otherAttributes = {
+				CATEGORY: 'Test Category',
+				DETAILS: 'Test Details'
+			};
+			var attributes = lang.mixin(lang.clone(someAttributes), lang.clone(otherAttributes));
+
+			var geometry = {
+				x: 4,
+				y: 14
+			};
+
+			var symbol = {
+				radius: 5,
+				type: 'esriSMS',
+				color: [0, 0, 0, 0.75]
+			};
+
+			var flattened = lang.clone(attributes);
+			flattened.geometry = lang.clone(geometry);
+			flattened.symbol = lang.clone(symbol);
+
+			var someFeature = lang.mixin(lang.clone(otherAttributes), {
+				attributes: lang.clone(someAttributes),
+				geometry: lang.clone(geometry),
+				symbol: lang.clone(symbol)
+			});
+
+			var feature = {
+				attributes: lang.clone(attributes),
+				geometry: lang.clone(geometry),
+				symbol: lang.clone(symbol)
+			};
+
+			// Test
+			assert.deepEqual(store._unflatten(lang.clone(flattened)), feature, 'Should unflatten attributes to attributes property');
+			assert.deepEqual(store._unflatten(lang.clone(feature)), feature, 'Should not modify already unflattened feature');
+			assert.deepEqual(someFieldsStore._unflatten(flattened), someFeature, 'Should only flatten outFields');
+		}
+	});
+
+	registerSuite({
+		name: 'getIdentity',
+		setup: function() {
+			MockMapService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+		},
+		'identity in attributes': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService,
+				idProperty: 'NAME',
+				flatten: false
+			});
+
+			var id = 'TestingID';
+			var object = {
+				geometry: {
+					x: 0,
+					y: 0
+				},
+				attributes: {
+					ESRI_OID: -1,
+					NAME: id,
+					CATEGORY: '',
+					DETAILS: ''
+				}
+			};
+
+			// Test
+			assert.strictEqual(store.getIdentity(object), id, 'Should retrieve id property from attributes');
+		},
+		'identity in object': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService,
+				idProperty: 'ESRI_OID'
+			});
+
+			var id = 4;
+			var object = {
+				ESRI_OID: id,
+				NAME: '',
+				CATEGORY: '',
+				DETAILS: '',
+				geometry: {
+					x: 0,
+					y: 0
+				}
+			};
+
+			// Test
+			assert.strictEqual(store.getIdentity(object), id, 'Should retrieve id property from object');
 		}
 	});
 });

@@ -69,10 +69,10 @@ define([
 		/**
 		 * Return an object's identity
 		 * @param  {Object} object The object to get the identity from
-		 * @return {Number}
+		 * @return {Number|String}
 		 */
 		getIdentity: function(object) {
-
+			return this.flatten ? object[this.idProperty] : lang.getObject('attributes.' + this.idProperty, false, object);
 		},
 		/**
 		 * Stores an object
@@ -135,6 +135,44 @@ define([
 
 		},
 		/**
+		 * Flatten attributes to top-level object
+		 * @param  {Object} object Object to flatten
+		 * @return {Object}        Flattened object
+		 */
+		_flatten: function(object) {
+			if (object.attributes) {
+				object = lang.mixin(object, object.attributes);
+				delete object.attributes;
+			}
+
+			return object;
+		},
+		/**
+		 * Unflatten attributes to ArcGIS Server structure
+		 * @param  {Object} object Object to unflatten
+		 * @return {Object}        Unflattened object
+		 */
+		_unflatten: function(object) {
+			var field, fields;
+
+			if (this.outFields.length && this.outFields[0] !== '*') {
+				fields = this.outFields;
+			} else {
+				fields = array.map(this._serviceInfo.fields, function(field) {
+					return field.name;
+				});
+			}
+
+			for (field in object) {
+				if (object.hasOwnProperty(field) && array.indexOf(fields, field) !== -1) {
+					lang.setObject('attributes.' + field, object[field], object);
+					delete object[field];
+				}
+			}
+
+			return object;
+		},
+		/**
 		 * Initializes store with ArcGIS service information
 		 * @param  {Object} serviceInfo service information
 		 */
@@ -181,6 +219,9 @@ define([
 					this.capabilities[capability] = true;
 				}));
 			}
+
+			// Save service info
+			this._serviceInfo = serviceInfo;
 
 			// Set loaded
 			this._loaded = true;
