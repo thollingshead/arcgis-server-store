@@ -146,6 +146,7 @@ define([
 			};
 		},
 		_register: function() {
+			// Root Info
 			var info = registry.register(/Mock\/MapServer\/[0-9]+$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
 		},

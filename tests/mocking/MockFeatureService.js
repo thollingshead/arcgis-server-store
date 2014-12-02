@@ -158,6 +158,7 @@ define([
 			};
 		},
 		_register: function() {
+			// Root Info
 			var info = registry.register(/Mock\/FeatureServer\/[0-9]+$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
 		},

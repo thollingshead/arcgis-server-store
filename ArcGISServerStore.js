@@ -55,7 +55,7 @@ define([
 					throw new Error('Invalid url. Cannot create store.');
 				});
 			} else {
-				throw new Error('Missing required property: \'url\'');
+				throw new Error('Missing required property: \'url\'.');
 			}
 		},
 		/**
