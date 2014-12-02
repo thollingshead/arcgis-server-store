@@ -4,12 +4,13 @@ define([
 	'dojo/_base/declare',
 	'dojo/_base/lang',
 
+	'dojo/Deferred',
 	'dojo/request/registry',
 	'dojo/when'
 ], function(
 	MockData,
 	declare, lang,
-	registry, when
+	Deferred, registry, when
 ) {
 	var MapService = declare(null, {
 		mocking: false,
@@ -149,6 +150,10 @@ define([
 			// Root Info
 			var info = registry.register(/Mock\/MapServer\/[0-9]+$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
+
+			// Data Item
+			var data = registry.register(/Mock\/MapServer\/[0-9]+\/[0-9]+$/, lang.hitch(this, 'data'));
+			this.handles.push(data);
 		},
 		_unregister: function() {
 			var handle;
@@ -159,6 +164,40 @@ define([
 
 		info: function(url, query) {
 			return when(this.serviceDefinition);
+		},
+		data: function(url, query) {
+			var dfd = new Deferred();
+
+			if (this.serviceDefinition.capabilities.indexOf('Data') !== -1) {
+				var id = url.match(/\/([0-9]+)$/)[1];
+				var feature = this.store.get(id);
+				if (feature) {
+					dfd.resolve({
+						feature: {
+							geometry: feature.geometry.toJson(),
+							attributes: feature.attributes
+						}
+					});
+				} else {
+					dfd.reject({
+						error: {
+							code: 400,
+							message: 'Invalid or missing input parameters.',
+							details: []
+						}
+					});
+				}
+			} else {
+				dfd.reject({
+					error: {
+						code: 400,
+						message: 'Requested operation is not supported by this service.',
+						details: ['The requested capability is not supported']
+					}
+				});
+			}
+
+			return when(dfd.promise);
 		}
 	});
 

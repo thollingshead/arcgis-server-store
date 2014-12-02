@@ -4,12 +4,13 @@ define([
 	'dojo/_base/declare',
 	'dojo/_base/lang',
 
+	'dojo/Deferred',
 	'dojo/request/registry',
 	'dojo/when'
 ], function(
 	MockData,
 	declare, lang,
-	registry, when
+	Deferred, registry, when
 ) {
 	var FeatureService = declare(null, {
 		mocking: false,
@@ -161,6 +162,10 @@ define([
 			// Root Info
 			var info = registry.register(/Mock\/FeatureServer\/[0-9]+$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
+
+			// Data Item
+			var data = registry.register(/Mock\/FeatureServer\/[0-9]+\/[0-9]+$/, lang.hitch(this, 'data'));
+			this.handles.push(data);
 		},
 		_unregister: function() {
 			var handle;
@@ -171,6 +176,40 @@ define([
 
 		info: function(url, query) {
 			return when(this.serviceDefinition);
+		},
+		data: function(url, query) {
+			var dfd = new Deferred();
+
+			if (this.serviceDefinition.capabilities.indexOf('Query') !== -1) {
+				var id = url.match(/\/([0-9]+)$/)[1];
+				var feature = this.store.get(id);
+				if (feature) {
+					dfd.resolve({
+						feature: {
+							geometry: feature.geometry.toJson(),
+							attributes: feature.attributes
+						}
+					});
+				} else {
+					dfd.reject({
+						error: {
+							code: 404,
+							message: 'Unable to complete operation.',
+							details: ['Feature not found.']
+						}
+					});
+				}
+			} else {
+				dfd.reject({
+					error: {
+						code: 400,
+						message: 'Requested operation is not supported by this service.',
+						details: []
+					}
+				});
+			}
+
+			return when(dfd.promise);
 		}
 	});
 
