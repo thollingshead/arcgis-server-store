@@ -3,11 +3,22 @@ define([
 	'dojo/_base/declare',
 	'dojo/_base/lang',
 
-	'esri/request'
+	'esri/request',
+	'esri/tasks/query'
 ], function(
 	array, declare, lang,
-	esriRequest
+	esriRequest, Query
 ) {
+
+	var _loadDfd;
+	var _loadWrapper = function(callback, context) {
+		return function() {
+			var args = arguments;
+			return _loadDfd.then(function() {
+				return callback.apply(context, args);
+			});
+		};
+	};
 
 	return declare(null, {
 		/**
@@ -36,6 +47,7 @@ define([
 
 			// Initialize Capabilities
 			this.capabilities = {
+				Data: false,
 				Query: false,
 				Create: false,
 				Delete: false,
@@ -45,7 +57,7 @@ define([
 
 			// Get Service Info
 			if (this.url) {
-				esriRequest({
+				_loadDfd = esriRequest({
 					url: this.url,
 					content: {
 						f: 'json'
@@ -57,6 +69,15 @@ define([
 			} else {
 				throw new Error('Missing required property: \'url\'.');
 			}
+
+			// Wrap functions until loaded
+			var get = this.get;
+
+			_loadDfd.then(lang.hitch(this, function() {
+				this.get = get;
+			}));
+
+			this.get = _loadWrapper(this.get, this);
 		},
 		/**
 		 * Retrieves and object by its identity
@@ -64,7 +85,33 @@ define([
 		 * @return {Object}
 		 */
 		get: function(id) {
+			if (this._serviceInfo.templates ? !this.capabilities.Query : !this.capabilities.Data) {
+				throw new Error('Get not supported.');
+			} else {
+				var query = new Query();
+				query.outFields = this.outFields;
+				query.returnGeometry = this.returnGeometry;
 
+				if (typeof id === 'string') {
+					query.where = this.idProperty + ' = \'' + id + '\'';
+				} else {
+					query.where = this.idProperty + ' = ' + id;
+				}
+
+				return esriRequest({
+					url: this.url + '/query',
+					content: lang.mixin(query.toJson(), {
+						f: 'json'
+					}),
+					handleAs: 'json'
+				}).then(lang.hitch(this, function(featureSet) {
+					if (featureSet.features && featureSet.features.length) {
+						return this.flatten ? this._flatten(featureSet.features[0]) : featureSet.features[0];
+					} else {
+						return undefined;
+					}
+				}));
+			}
 		},
 		/**
 		 * Return an object's identity
