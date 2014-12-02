@@ -1,16 +1,21 @@
 define([
 	'./MockData',
+	'./QueryUtils',
 
+	'dojo/_base/array',
 	'dojo/_base/declare',
 	'dojo/_base/lang',
 
 	'dojo/Deferred',
 	'dojo/request/registry',
-	'dojo/when'
+	'dojo/when',
+
+	'esri/tasks/FeatureSet'
 ], function(
-	MockData,
-	declare, lang,
-	Deferred, registry, when
+	MockData, QueryUtils,
+	array, declare, lang,
+	Deferred, registry, when,
+	FeatureSet
 ) {
 	var FeatureService = declare(null, {
 		mocking: false,
@@ -65,7 +70,7 @@ define([
 				copyrightText: '',
 				defaultVisibility: true,
 				editFieldsInfo: null,
-				ownershipBasedAccessCOntrolForFeatures: null,
+				ownershipBasedAccessControlForFeatures: null,
 				syncCanReturnChanges: false,
 				relationships: [],
 				isDataVersioned: false,
@@ -166,6 +171,10 @@ define([
 			// Data Item
 			var data = registry.register(/Mock\/FeatureServer\/[0-9]+\/[0-9]+$/, lang.hitch(this, 'data'));
 			this.handles.push(data);
+
+			// Query (simple)
+			var query = registry.register(/Mock\/FeatureServer\/[0-9]+\/query$/, lang.hitch(this, 'query'));
+			this.handles.push(query);
 		},
 		_unregister: function() {
 			var handle;
@@ -210,6 +219,100 @@ define([
 			}
 
 			return when(dfd.promise);
+		},
+		query: function(url, query) {
+			if (this.serviceDefinition.capabilities.indexOf('Query') !== -1) {
+				try {
+					query.where = query.where || '1=1';
+					query.objectIds = query.objectIds && array.map(query.objectIds.split(','), function(objectId) {
+						return parseInt(objectId, 10);
+					}) || undefined;
+
+
+					var data = array.filter(this.store.query(QueryUtils.parse(query.where)), lang.hitch(this, function(feature) {
+						return !query.objectIds || array.indexOf(query.objectIds, feature.attributes[this.serviceDefinition.objectIdField]);
+					}));
+					if (query.returnCountOnly) {
+						return when({
+							count: data.length
+						});
+					} else if (query.returnIdsOnly) {
+						var ids = array.map(data.sort(QueryUtils.sort(query.orderByFields)), lang.hitch(this, function(feature) {
+							return feature.attributes[this.serviceDefinition.objectIdField];
+						}));
+						return when({
+							objectIdFieldName: this.serviceDefinition.objectIdField,
+							objectIds: ids
+						});
+					} else {
+						query.outFields = query.outFields.split(',');
+						var featureSet = new FeatureSet({
+							displayFieldName: this.serviceDefinition.displayField,
+							geometryType: this.serviceDefinition.geometryType,
+							spatialReference: this.serviceDefinition.extent.spatialReference,
+							fieldAliases: {},
+							exceededTransferLimit: false
+						});
+
+						featureSet.fields = array.filter(this.serviceDefinition.fields, function(field) {
+							return field.type !== 'esriFieldTypeGeometry' && query.outFields[0] === '*' || query.outFields.indexOf(field.name) !== -1;
+						});
+						array.forEach(featureSet.fields, function(field) {
+							featureSet.fieldAliases[field.name] = field.alias;
+						});
+
+						if (query.returnGeometry) {
+							featureSet.features = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+								var attributes = {};
+
+								array.forEach(featureSet.fields, function(field) {
+									attributes[field.name] = feature.attributes[field.name];
+								});
+
+								return {
+									attributes: attributes,
+									geometry: feature.geometry.toJson()
+								};
+							});
+						} else {
+							featureSet.features = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+								var attributes = {};
+
+								array.forEach(featureSet.fields, function(field) {
+									attributes[field.name] = feature.attributes[field.name];
+								});
+
+								return {
+									attributes: attributes
+								};
+							});
+						}
+
+						if (featureSet.features.length > this.serviceDefinition.maxRecordCount) {
+							featureSet.features.splice(this.serviceDefinition.maxRecordCount, featureSet.features.length - this.serviceDefinition.maxRecordCount);
+							featureSet.exceededTransferLimit = true;
+						}
+
+						return when(featureSet);
+					}
+				} catch (error) {
+					return when({
+						error: {
+							code: 400,
+							message: 'Unable to complete operation.',
+							details: ['Unable to perform query operation.']
+						}
+					});
+				}
+			} else {
+				when({
+					error: {
+						code: 400,
+						message: 'Requested operation is not supported by this service.',
+						details: []
+					}
+				});
+			}
 		}
 	});
 

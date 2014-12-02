@@ -1,13 +1,14 @@
 define([
+	'dojo/_base/lang',
 	'dojo/request/registry',
 
 	'esri/urlUtils'
 ], function(
-	registry,
+	lang, registry,
 	urlUtils
 ) {
 	return function(req, options) {
 		var parsed = urlUtils.urlToObject(req.url);
-		return registry(parsed.path, parsed.query);
+		return registry(parsed.path, lang.mixin(parsed.query, req.content));
 	};
 });
