@@ -152,10 +152,6 @@ define([
 			};
 		},
 		_register: function() {
-			// Root Info
-			var info = registry.register(/Mock\/MapServer\/[0-9]+$/, lang.hitch(this, 'info'));
-			this.handles.push(info);
-
 			// Data Item
 			var data = registry.register(/Mock\/MapServer\/[0-9]+\/[0-9]+$/, lang.hitch(this, 'data'));
 			this.handles.push(data);
@@ -163,6 +159,10 @@ define([
 			// Query (simple)
 			var query = registry.register(/Mock\/MapServer\/[0-9]+\/query$/, lang.hitch(this, 'query'));
 			this.handles.push(query);
+
+			// Root Info / Unknown Endpoints
+			var info = registry.register(/Mock\/MapServer\/[0-9]+.*$/, lang.hitch(this, 'info'));
+			this.handles.push(info);
 		},
 		_unregister: function() {
 			var handle;
@@ -175,9 +175,9 @@ define([
 			return when(this.serviceDefinition);
 		},
 		data: function(url, query) {
-			var dfd = new Deferred();
+			var error, dfd = new Deferred();
 
-			if (this.serviceDefinition.capabilities.indexOf('Data') !== -1) {
+			if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Data') !== -1) {
 				var id = url.match(/\/([0-9]+)$/)[1];
 				var feature = this.store.get(id);
 				if (feature) {
@@ -188,28 +188,23 @@ define([
 						}
 					});
 				} else {
-					dfd.reject({
-						error: {
-							code: 400,
-							message: 'Invalid or missing input parameters.',
-							details: []
-						}
-					});
+					error = new Error('Invalid or missing input parameters.');
+					error.code = 400;
+					error.details = [];
+					dfd.reject(error);
 				}
 			} else {
-				dfd.reject({
-					error: {
-						code: 400,
-						message: 'Requested operation is not supported by this service.',
-						details: ['The requested capability is not supported']
-					}
-				});
+				error = new Error('Requested operation is not supported by this service.');
+				error.code = 400;
+				error.details = ['The requested capability is not supported'];
+				dfd.reject(error);
 			}
 
 			return when(dfd.promise);
 		},
 		query: function(url, query) {
-			if (this.serviceDefinition.capabilities.indexOf('Data') !== -1) {
+			var error, dfd = new Deferred();
+			if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Data') !== -1) {
 				try {
 					query.where = query.where || '1=1';
 					query.objectIds = query.objectIds && array.map(query.objectIds.split(','), function(objectId) {
@@ -220,14 +215,14 @@ define([
 						return !query.objectIds || array.indexOf(query.objectIds, feature.attributes.ESRI_OID);
 					});
 					if (query.returnCountOnly) {
-						return when({
+						dfd.resolve({
 							count: data.length
 						});
 					} else if (query.returnIdsOnly) {
 						var ids = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
 							return feature.attributes.ESRI_OID;
 						});
-						return when({
+						dfd.resolve({
 							objectIdFieldName: 'ESRI_OID',
 							objectIds: ids
 						});
@@ -258,7 +253,7 @@ define([
 
 								return {
 									attributes: attributes,
-									geometry: feature.geometry.toJson()
+									geometry: feature.geometry ? feature.geometry.toJson() : null
 								};
 							});
 						} else {
@@ -280,26 +275,22 @@ define([
 							featureSet.exceededTransferLimit = true;
 						}
 
-						return when(featureSet);
+						dfd.resolve(featureSet);
 					}
-				} catch (error) {
-					return when({
-						error: {
-							code: 400,
-							message: 'Unable to complete operation.',
-							details: []
-						}
-					});
+				} catch (e) {
+					error = new Error('Unable to complete operation.');
+					error.code = 400;
+					error.details = [];
+					dfd.reject(error);
 				}
 			} else {
-				return when({
-					error: {
-						code: 400,
-						message: 'Requested operation is not supported by this service.',
-						details: ['The requested capability is not supported.']
-					}
-				});
+				error = new Error('Requested operation is not supported by this service.');
+				error.code = 400;
+				error.details = ['The requested capability is not supported.'];
+				dfd.reject(error);
 			}
+
+			return when(dfd.promise);
 		}
 	});
 
