@@ -6,27 +6,24 @@ define([
 
 	'dojo/_base/lang',
 
+	'dojo/aspect',
+	'dojo/Deferred',
+	'dojo/promise/all',
+	'dojo/when',
+
 	'intern!object',
 	'intern/chai!assert'
 ], function(
 	ArcGISServerStore,
 	MockFeatureService, MockMapService,
 	lang,
+	aspect, Deferred, all, when,
 	registerSuite, assert
 ) {
 	var mapService = 'http://localhost/arcgis/rest/services/Mock/MapServer/0';
 	var featureService = 'http://localhost/arcgis/rest/services/Mock/FeatureServer/0';
 	registerSuite({
 		name: 'constructor',
-		setup: function() {
-			MockMapService.start();
-		},
-		teardown: function() {
-			MockMapService.stop();
-		},
-		beforeEach: function() {
-			MockMapService.reset();
-		},
 		'default properties': function() {
 			// Setup
 			var store = new ArcGISServerStore({
@@ -59,7 +56,7 @@ define([
 			assert.sameMembers(mixinStore.outFields, ['NAME'], 'Default outFields should be overidden');
 		},
 		'no url': function() {
-			assert.throws(ArcGISServerStore, 'Missing required property: \'url\'', 'Not specifying url in options should throw an error');
+			assert.throws(ArcGISServerStore, 'Missing required property: \'url\'.', 'Not specifying url in options should throw an error');
 		},
 		'initialize capabilities': function() {
 			// Setup
@@ -69,6 +66,7 @@ define([
 
 			// Test
 			assert.isDefined(store.capabilities, 'Capabilities should be initialized');
+			assert.isFalse(store.capabilities.Data, 'Data capability should be initialized');
 			assert.isFalse(store.capabilities.Query, 'Query capabilty should be initialized');
 			assert.isFalse(store.capabilities.Create, 'Create capabilty should be initialized');
 			assert.isFalse(store.capabilities.Delete, 'Delete capabilty should be initialized');
@@ -87,123 +85,192 @@ define([
 			MockMapService.stop();
 			MockFeatureService.stop();
 		},
-		beforeEach: function() {
-			MockMapService.reset();
-			MockFeatureService.reset();
-		},
 		'idProperty validated': function() {
 			// Setup
 			var dfd = this.async(1000);
 
+			var validDfd = new Deferred();
 			var validStore = new ArcGISServerStore({
 				url: mapService,
 				idProperty: 'NAME'
 			});
+			if (validStore._loaded) {
+				validDfd.resolve();
+			} else {
+				aspect.after(validStore, '_initStore', function() {
+					validDfd.resolve();
+				});
+			}
 
+			var invalidDfd = new Deferred();
 			var invalidStore = new ArcGISServerStore({
 				url: mapService,
 				idProperty: 'INVALID'
 			});
+			if (invalidStore._loaded) {
+				invalidDfd.resolve();
+			} else {
+				aspect.after(invalidStore, '_initStore', function() {
+					invalidDfd.resolve();
+				});
+			}
 
 			// Test
-			setTimeout(function() {
-				dfd.callback(function() {
-					assert.strictEqual(validStore.idProperty, 'NAME', 'Use passed idProperty if valid');
-					assert.strictEqual(invalidStore.idProperty, 'ESRI_OID', 'Use service OID field if idProperty is invalid');
-				})();
-			}, 0);
+			all([validDfd, invalidDfd]).then(dfd.callback(function() {
+				assert.strictEqual(validStore.idProperty, 'NAME', 'Use passed idProperty if valid');
+				assert.strictEqual(invalidStore.idProperty, 'ESRI_OID', 'Use service OID field if idProperty is invalid');
+			}), dfd.reject.bind(dfd));
 		},
 		'outFields validated': function() {
 			// Setup
 			var dfd = this.async(1000);
 
+			var validDfd = new Deferred();
 			var validStore = new ArcGISServerStore({
 				url: mapService,
 				outFields: ['ESRI_OID', 'NAME']
 			});
+			if (validStore._loaded) {
+				validDfd.resolve();
+			} else {
+				aspect.after(validStore, '_initStore', function() {
+					validDfd.resolve();
+				});
+			}
 
+			var missingDfd = new Deferred();
 			var missingStore = new ArcGISServerStore({
 				url: mapService,
 				outFields: ['NAME']
 			});
+			if (missingStore._loaded) {
+				missingDfd.resolve();
+			} else {
+				aspect.after(missingStore, '_initStore', function() {
+					missingDfd.resolve();
+				});
+			}
 
+			var invalidDfd = new Deferred();
 			var invalidStore = new ArcGISServerStore({
 				url: mapService,
 				outFields: ['ESRI_OID', 'INVALID']
 			});
+			if (invalidStore._loaded) {
+				invalidDfd.resolve();
+			} else {
+				aspect.after(invalidStore, '_initStore', function() {
+					invalidDfd.resolve();
+				});
+			}
 
+			var badDfd = new Deferred();
 			var badStore = new ArcGISServerStore({
 				url: mapService,
 				outFields: ''
 			});
+			if (badStore._loaded) {
+				badDfd.resolve();
+			} else {
+				aspect.after(badStore, '_initStore', function() {
+					badDfd.resolve();
+				});
+			}
 
 			// Test
-			setTimeout(function() {
-				dfd.callback(function() {
-					assert.sameMembers(validStore.outFields, ['ESRI_OID', 'NAME'], 'Use passed outFields if valid');
-					assert.sameMembers(missingStore.outFields, ['NAME', 'ESRI_OID'], 'Add idProperty field if not included in outFields');
-					assert.sameMembers(invalidStore.outFields, ['ESRI_OID'], 'Remove invalid fields passed in outFields');
-					assert.sameMembers(badStore.outFields, ['*'], 'Use all fields if bad outFields are passed');
-				})();
-			}, 0);
+			all([validDfd, missingDfd, invalidDfd, badDfd]).then(dfd.callback(function() {
+				assert.sameMembers(validStore.outFields, ['ESRI_OID', 'NAME'], 'Use passed outFields if valid');
+				assert.sameMembers(missingStore.outFields, ['NAME', 'ESRI_OID'], 'Add idProperty field if not included in outFields');
+				assert.sameMembers(invalidStore.outFields, ['ESRI_OID'], 'Remove invalid fields passed in outFields');
+				assert.sameMembers(badStore.outFields, ['*'], 'Use all fields if bad outFields are passed');
+			}), dfd.reject.bind(dfd));
 		},
 		'discover service capabilities': function() {
 			// Setup
 			var dfd = this.async(1000);
 
+			var mapDfd = new Deferred();
 			var mapStore = new ArcGISServerStore({
 				url: mapService
 			});
+			if (mapStore._loaded) {
+				mapDfd.resolve();
+			} else {
+				aspect.after(mapStore, '_initStore', function() {
+					mapDfd.resolve();
+				});
+			}
 
+			var featureDfd = new Deferred();
 			var featureStore = new ArcGISServerStore({
 				url: featureService
 			});
+			if (featureStore._loaded) {
+				featureDfd.resolve();
+			} else {
+				aspect.after(featureStore, '_initStore', function() {
+					featureDfd.resolve();
+				});
+			}
 
 			// Test
-			setTimeout(function() {
-				dfd.callback(function() {
-					assert.isTrue(mapStore.capabilities.Query, 'Query capabilty should be overidden by service');
-					assert.isFalse(mapStore.capabilities.Create, 'Create capabilty should not be overidden by service');
-					assert.isFalse(mapStore.capabilities.Delete, 'Delete capabilty should not be overidden by service');
-					assert.isFalse(mapStore.capabilities.Update, 'Update capabilty should not be overidden by service');
-					assert.isFalse(mapStore.capabilities.Editing, 'Editing capabilty should not be overidden by service');
+			all([mapDfd, featureDfd]).then(dfd.callback(function() {
+				assert.isTrue(mapStore.capabilities.Data, 'Data capability should be overidden by service');
+				assert.isTrue(mapStore.capabilities.Query, 'Query capabilty should be overidden by service');
+				assert.isFalse(mapStore.capabilities.Create, 'Create capabilty should not be overidden by service');
+				assert.isFalse(mapStore.capabilities.Delete, 'Delete capabilty should not be overidden by service');
+				assert.isFalse(mapStore.capabilities.Update, 'Update capabilty should not be overidden by service');
+				assert.isFalse(mapStore.capabilities.Editing, 'Editing capabilty should not be overidden by service');
 
-					assert.isTrue(featureStore.capabilities.Query, 'Query capabilty should be overidden by service');
-					assert.isTrue(featureStore.capabilities.Create, 'Create capabilty should be overidden by service');
-					assert.isTrue(featureStore.capabilities.Delete, 'Delete capabilty should be overidden by service');
-					assert.isTrue(featureStore.capabilities.Update, 'Update capabilty should be overidden by service');
-					assert.isTrue(featureStore.capabilities.Editing, 'Editing capabilty should be overidden by service');
-				})();
-			}, 0);
+				assert.isFalse(featureStore.capabilities.Data, 'Data capability should not be overidden by service');
+				assert.isTrue(featureStore.capabilities.Query, 'Query capabilty should be overidden by service');
+				assert.isTrue(featureStore.capabilities.Create, 'Create capabilty should be overidden by service');
+				assert.isTrue(featureStore.capabilities.Delete, 'Delete capabilty should be overidden by service');
+				assert.isTrue(featureStore.capabilities.Update, 'Update capabilty should be overidden by service');
+				assert.isTrue(featureStore.capabilities.Editing, 'Editing capabilty should be overidden by service');
+			}), dfd.reject.bind(dfd));
 		},
 		'store service info': function() {
 			// Setup
 			var dfd = this.async(1000);
 
+			var storeDfd = new Deferred();
 			var store = new ArcGISServerStore({
 				url: mapService
 			});
+			if (store._loaded) {
+				storeDfd.resolve();
+			} else {
+				aspect.after(store, '_initStore', function() {
+					storeDfd.resolve();
+				});
+			}
 
 			// Test
-			setTimeout(function() {
-				dfd.callback(function() {
-					assert.isDefined(store._serviceInfo, 'Should store service info');
-				})();
-			}, 0);
+			storeDfd.then(dfd.callback(function() {
+				assert.isDefined(store._serviceInfo, 'Should store service info');
+			}), dfd.reject.bind(dfd));
 		},
 		'set loaded': function() {
 			// Setup
 			var dfd = this.async(1000);
 
+			var storeDfd = new Deferred();
 			var store = new ArcGISServerStore({
 				url: mapService
 			});
+			if (store._loaded) {
+				storeDfd.resolve();
+			} else {
+				aspect.after(store, '_initStore', function() {
+					storeDfd.resolve();
+				});
+			}
 
-			setTimeout(function() {
-				dfd.callback(function() {
-					assert.isTrue(store._loaded, 'Set loaded property after initialization');
-				})();
-			}, 0);
+			// Test
+			storeDfd.then(dfd.callback(function() {
+				assert.isTrue(store._loaded, 'Set loaded property after initialization');
+			}), dfd.reject.bind(dfd));
 		}
 	});
 
@@ -257,14 +324,32 @@ define([
 		},
 		'unflatten attributes': function() {
 			// Setup
+			var dfd = this.async(1000);
+
+			var someFieldsDfd = new Deferred();
 			var someFieldsStore = new ArcGISServerStore({
 				url: mapService,
 				outFields: ['ESRI_OID', 'NAME']
 			});
+			if (someFieldsStore._loaded) {
+				someFieldsDfd.resolve();
+			} else {
+				aspect.after(someFieldsStore, '_initStore', function() {
+					someFieldsDfd.resolve();
+				});
+			}
 
+			var storeDfd = new Deferred();
 			var store = new ArcGISServerStore({
 				url: mapService
 			});
+			if (store._loaded) {
+				storeDfd.resolve();
+			} else {
+				aspect.after(store, '_initStore', function() {
+					storeDfd.resolve();
+				});
+			}
 
 			var someAttributes = {
 				ESRI_OID: 4,
@@ -304,9 +389,11 @@ define([
 			};
 
 			// Test
-			assert.deepEqual(store._unflatten(lang.clone(flattened)), feature, 'Should unflatten attributes to attributes property');
-			assert.deepEqual(store._unflatten(lang.clone(feature)), feature, 'Should not modify already unflattened feature');
-			assert.deepEqual(someFieldsStore._unflatten(flattened), someFeature, 'Should only flatten outFields');
+			all([someFieldsDfd, storeDfd]).then(dfd.callback(function() {
+				assert.deepEqual(store._unflatten(lang.clone(flattened)), feature, 'Should unflatten attributes to attributes property');
+				assert.deepEqual(store._unflatten(lang.clone(feature)), feature, 'Should not modify already unflattened feature');
+				assert.deepEqual(someFieldsStore._unflatten(flattened), someFeature, 'Should only flatten outFields');
+			}), dfd.reject.bind(dfd));
 		}
 	});
 
@@ -364,6 +451,101 @@ define([
 
 			// Test
 			assert.strictEqual(store.getIdentity(object), id, 'Should retrieve id property from object');
+		}
+	});
+
+	registerSuite({
+		name: 'get',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		'get no capability': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var mapDfd = new Deferred();
+			var mapStore = new ArcGISServerStore({
+				url: mapService
+			});
+			mapStore.capabilities.Data = false;
+
+			when(mapStore.get(1)).then(dfd.reject.bind(dfd), function(error) {
+				mapDfd.resolve(error);
+			});
+
+			var featureDfd = new Deferred();
+			var featureStore = new ArcGISServerStore({
+				url: featureService
+			});
+			featureStore.capabilities.Query = false;
+
+			when(featureStore.get(12)).then(dfd.reject.bind(dfd), function(error) {
+				featureDfd.resolve(error);
+			});
+
+			// Test
+			all({
+				map: mapDfd,
+				feature: featureDfd
+			}).then(dfd.callback(function(errors) {
+				assert.instanceOf(errors.map, Error, 'Map service does not support Data capability. Should receive an error');
+				assert.strictEqual(errors.map.message, 'Get not supported.', 'Should receive a custom error message');
+
+				assert.instanceOf(errors.feature, Error, 'Feature service does not support Query capability. Should receive an error');
+				assert.strictEqual(errors.feature.message, 'Get not supported.', 'Should receive a custom error message');
+			}), dfd.reject.bind(dfd));
+		},
+		'get existing object': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var oidStore = new ArcGISServerStore({
+				url: mapService,
+				returnGeometry: false,
+				outFields: ['NAME', 'DETAILS'],
+				flatten: false
+			});
+
+			var oidMatch = {
+				attributes: {
+					ESRI_OID: 1,
+					NAME: 'Mock Test Point ' + 1,
+					DETAILS: 'Mocked'
+				}
+			};
+
+			var stringStore = new ArcGISServerStore({
+				url: featureService,
+				idProperty: 'NAME'
+			});
+
+			// Test
+			all({
+				oid: when(oidStore.get(oidMatch.attributes.ESRI_OID)),
+				string: when(stringStore.get('Mock Test Point 2'))
+			}).then(dfd.callback(function(results) {
+				assert.deepEqual(results.oid, oidMatch, 'Return object with correct fields and geometry.');
+				assert.strictEqual(stringStore.getIdentity(results.string), 'Mock Test Point 2', 'Return object with matching string id property');
+				assert.isDefined(results.string.geometry, 'Return object with geometry');
+			}), dfd.reject.bind(dfd));
+		},
+		'get nonexistent object': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			when(store.get('Invalid')).then(dfd.callback(function(obj) {
+				assert.isUndefined(obj, 'Return undefined if does not exist');
+			}));
 		}
 	});
 });
