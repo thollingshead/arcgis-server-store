@@ -173,6 +173,10 @@ define([
 			var query = registry.register(/Mock\/FeatureServer\/[0-9]+\/query$/, lang.hitch(this, 'query'));
 			this.handles.push(query);
 
+			// Add Features
+			var addFeatures = registry.register(/Mock\/FeatureServer\/[0-9]+\/addFeatures$/, lang.hitch(this, 'addFeatures'));
+			this.handles.push(addFeatures);
+
 			// Root Info / Unknown Endpoints
 			var info = registry.register(/Mock\/FeatureServer\/[0-9]+.*$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
@@ -295,6 +299,112 @@ define([
 					error = new Error('Unable to complete operation.');
 					error.code = 400;
 					error.details = ['Unable to perform query operation.'];
+					dfd.reject(error);
+				}
+			} else {
+				error = new Error('Requested operation is not supported by this service.');
+				error.code = 400;
+				error.details = [];
+				dfd.reject(error);
+			}
+
+			return when(dfd.promise);
+		},
+		addFeatures: function(url, query) {
+			var error, dfd = new Deferred();
+			if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Create') !== -1) {
+				try {
+					query.features = JSON.parse(query.features);
+
+					if (query.features.length) {
+						query.features = array.map(query.features, lang.hitch(this, function(feature) {
+							var add = {
+								attributes: {}
+							};
+
+							// Validate fields
+							array.forEach(this.serviceDefinition.fields, function(field) {
+								if (field.type === 'esriFieldTypeOID' || field.type === 'esriFieldTypeGeometry') {
+									return;
+								}
+
+								var val = lang.getObject('attributes.' + field.name, false, feature);
+								if (val !== undefined) {
+									switch (field.type) {
+										case 'esriFieldTypeSmallInteger':
+											if (isNaN(val) || val % 1 !== 0 || val < -32768 || val > 32767) {
+												throw new Error('Parser');
+											}
+											break;
+										case 'esriFieldTypeInteger':
+											if (isNaN(val) || val % 1 !== 0 || val < -2147483648 || val > 2147483647) {
+												throw new Error('Parser');
+											}
+											break;
+										case 'esriFieldTypeDouble':
+											if (isNaN(val) || val % 1 === 0 || val < -2.2 * Math.pow(10, 308) || val > 1.8 * Math.pow(10, 308)) {
+												throw new Error('Parser');
+											}
+											break;
+										case 'esriFieldTypeDate':
+											val = Date.parse(val);
+											if (isNaN(val)) {
+												throw new Error('Parser');
+											} else {
+												val = new Date(val);
+											}
+											break;
+										case 'esriFieldTypeString':
+											if (typeof val !== 'string') {
+												throw new Error('Parser');
+											} else if (val.length > field.length) {
+												val = val.substr(0, field.length);
+											}
+											break;
+										default:
+											add.attributes[field.name] = null;
+									}
+
+									add.attributes[field.name] = val;
+								} else {
+									add.attributes[field.name] = null;
+								}
+							});
+
+							// Validate geometry
+							if (this.serviceDefinition.type === 'Feature Layer' && feature.geometry) {
+								var geometry = geometryJsonUtils.fromJson(feature.geometry);
+
+								if (geometry) {
+									if (geometryJsonUtils.getJsonType(geometry) === this.serviceDefinition.geometryType) {
+										add.geometry = geometry;
+									} else {
+										throw new Error();
+									}
+								}
+							}
+
+							return add;
+						}));
+
+						var addResults = array.map(query.features, lang.hitch(this, function(feature) {
+							var id = this.store.add(feature);
+							return {
+								objectId: id,
+								success: true
+							};
+						}));
+
+						dfd.resolve({
+							addResults: addResults
+						});
+					} else {
+						throw new Error('Parser');
+					}
+				} catch (e) {
+					error = new Error('Unable to complete operation.');
+					error.code = e.message ? 400 : 500;
+					error.details = e.message ? ['Parser error: Some parameters could not be recognized.'] : [];
 					dfd.reject(error);
 				}
 			} else {
