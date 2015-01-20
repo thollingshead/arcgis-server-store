@@ -167,7 +167,7 @@ define([
 				object.geometry = geometryJsonUtils.fromJson(object.geometry);
 			}
 
-			this.inherited(arguments);
+			return this.inherited(arguments);
 		}
 	});
 });

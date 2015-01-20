@@ -72,12 +72,15 @@ define([
 
 			// Wrap functions until loaded
 			var get = this.get;
+			var add = this.add;
 
 			_loadDfd.then(lang.hitch(this, function() {
 				this.get = get;
+				this.add = add;
 			}));
 
 			this.get = _loadWrapper(this.get, this);
+			this.add = _loadWrapper(this.add, this);
 		},
 		/**
 		 * Retrieves and object by its identity
@@ -137,7 +140,37 @@ define([
 		 * @return {Number}
 		 */
 		add: function(object, options) {
+			options = options || {};
+			if (this.capabilities.Create) {
+				var id = ('id' in options) ? options.id : this.getIdentity(object);
+				object = this._unflatten(object);
+				object.attributes[this.idProperty] = id;
 
+				if (typeof id != 'undefined' && this.idProperty === this._serviceInfo.objectIdField) {
+					console.warn('Cannot set id on new object.');
+				}
+
+				return esriRequest({
+					url: this.url + '/addFeatures',
+					content: {
+						f: 'json',
+						features: JSON.stringify([object])
+					},
+					handleAs: 'json'
+				}, {
+					usePost: true
+				}).then(lang.hitch(this, function(response) {
+					if (response.addResults && response.addResults.length) {
+						if (this.idProperty === this._serviceInfo.objectIdField) {
+							return response.addResults[0].success ? response.addResults[0].objectId : undefined;
+						} else {
+							return response.addResults[0].success ? id : undefined;
+						}
+					}
+				}));
+			} else {
+				throw new Error('Add not supported.');
+			}
 		},
 		/**
 		 * Deletes an object by its identity

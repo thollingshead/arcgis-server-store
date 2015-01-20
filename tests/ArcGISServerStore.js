@@ -4,6 +4,7 @@ define([
 	'./mocking/MockFeatureService',
 	'./mocking/MockMapService',
 
+	'dojo/_base/array',
 	'dojo/_base/lang',
 
 	'dojo/aspect',
@@ -16,7 +17,7 @@ define([
 ], function(
 	ArcGISServerStore,
 	MockFeatureService, MockMapService,
-	lang,
+	array, lang,
 	aspect, Deferred, all, when,
 	registerSuite, assert
 ) {
@@ -546,6 +547,180 @@ define([
 			when(store.get('Invalid')).then(dfd.callback(function(obj) {
 				assert.isUndefined(obj, 'Return undefined if does not exist');
 			}));
+		}
+	});
+
+	registerSuite({
+		name: 'add',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		beforeEach: function() {
+			MockFeatureService.reset();
+		},
+		'add no capability': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var mapStore = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var addObject = {
+				NAME: 'Add Object'
+			};
+
+			// Test
+			when(mapStore.add(addObject)).then(dfd.reject.bind(dfd), dfd.callback(function(error) {
+				assert.instanceOf(error, Error, 'Map service does not support Create capability. Should receive an error');
+				assert.strictEqual(error.message, 'Add not supported.', 'Should receive a custom error message');
+			}));
+		},
+		'add with options id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService,
+				flatten: false
+			});
+
+			var addObject = {
+				attributes: {
+					NAME: 'Add Object',
+					DETAILS: 'Mocking Add',
+					CATEGORY: 0
+				},
+				geometry: {
+					x: 12,
+					y: 21
+				}
+			};
+
+			var warn = console.warn;
+			var warnings = [];
+			console.warn = function() {
+				array.forEach(arguments, function(arg) {
+					warnings.push(arg);
+				});
+			};
+
+			// Test
+			when(store.add(lang.clone(addObject), {
+				id: 1234
+			})).then(function(id) {
+				addObject.attributes.ESRI_OID = id;
+				when(store.get(id)).then(dfd.callback(function(added) {
+					assert.sameMembers(warnings, ['Cannot set id on new object.'], 'Log warning message when id is passed');
+					assert.isObject(added, 'Object should be added to store');
+					delete added.geometry.spatialReference;
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+
+			// Teardown
+			console.warn = warn;
+		},
+		'add with service objectid field': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			var addObject = {
+				ESRI_OID: 1234,
+				NAME: 'Add Object',
+				DETAILS: 'Mocking Add',
+				CATEGORY: 1234
+			};
+
+			var warn = console.warn;
+			var warnings = [];
+			console.warn = function() {
+				array.forEach(arguments, function(arg) {
+					warnings.push(arg);
+				});
+			};
+
+			// Test
+			when(store.add(lang.clone(addObject))).then(function(id) {
+				addObject.ESRI_OID = id;
+				addObject.geometry = null;
+				when(store.get(id)).then(dfd.callback(function(added) {
+					assert.sameMembers(warnings, ['Cannot set id on new object.'], 'Log warning message when id is passed');
+					assert.isObject(added, 'Object should be added to store');
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+
+			// Teardown
+			console.warn = warn;
+		},
+		'add with custom id field': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService,
+				idProperty: 'NAME'
+			});
+
+			var addObject = {
+				NAME: 'custID-1234',
+				DETAILS: 'Mocking Add',
+				CATEGORY: 0,
+				geometry: {
+					x: 2,
+					y: 2
+				}
+			};
+
+			// Test
+			when(store.add(lang.clone(addObject))).then(function(id) {
+				addObject[store.idProperty] = id;
+				when(store.get(id)).then(dfd.callback(function(added) {
+					assert.isObject(added, 'Object should be added to store');
+					assert.strictEqual(id, store.getIdentity(added), 'Add should return new id');
+					delete added.ESRI_OID;
+					delete added.geometry.spatialReference;
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+		},
+		'add without id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService,
+				flatten: false,
+				returnGeometry: false
+			});
+
+			var addObject = {
+				attributes: {
+					NAME: 'Add Object',
+					DETAILS: 'Mocking Add',
+					CATEGORY: 4321
+				}
+			};
+
+			// Test
+			when(store.add(lang.clone(addObject))).then(function(id) {
+				addObject.attributes.ESRI_OID = id;
+				when(store.get(id)).then(dfd.callback(function(added) {
+					assert.isObject(added, 'Object should be added to store');
+					assert.strictEqual(id, store.getIdentity(added), 'Add should return new id');
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');
+				}));
+			}, dfd.reject.bind(dfd));
 		}
 	});
 });
