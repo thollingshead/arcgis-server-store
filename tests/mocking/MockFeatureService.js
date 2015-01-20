@@ -177,6 +177,10 @@ define([
 			var addFeatures = registry.register(/Mock\/FeatureServer\/[0-9]+\/addFeatures$/, lang.hitch(this, 'addFeatures'));
 			this.handles.push(addFeatures);
 
+			// Update Features
+			var updateFeatures = registry.register(/Mock\/FeatureServer\/[0-9]+\/updateFeatures$/, lang.hitch(this, 'updateFeatures'));
+			this.handles.push(updateFeatures);
+
 			// Root Info / Unknown Endpoints
 			var info = registry.register(/Mock\/FeatureServer\/[0-9]+.*$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
@@ -409,6 +413,108 @@ define([
 				}
 			} else {
 				error = new Error('Requested operation is not supported by this service.');
+				error.code = 400;
+				error.details = [];
+				dfd.reject(error);
+			}
+
+			return when(dfd.promise);
+		},
+		updateFeatures: function(url, query) {
+			var error, dfd = new Deferred();
+			if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Update') !== -1) {
+				try {
+					query.features = JSON.parse(query.features);
+
+					if (query.features.length) {
+						var next = 1;
+						query.features = array.map(query.features, lang.hitch(this, function(feature) {
+							var id = lang.getObject('attributes.' + this.serviceDefinition.objectIdField, false, feature) || next++;
+							var update = this.store.get(id);
+
+							// Validate Fields
+							array.forEach(this.serviceDefinition.fields, function(field) {
+								if (field.type === 'esriFieldTypeOID' || field.type === 'esriFieldTypeGeometry') {
+									return;
+								}
+
+								var val = lang.getObject('attributes.' + field.name, false, feature);
+								if (val !== undefined) {
+									switch (field.type) {
+										case 'esriFieldTypeSmallInteger':
+											if (isNaN(val) || val % 1 !== 0 || val < -32768 || val > 32767) {
+												throw new Error('Parser');
+											}
+											break;
+										case 'esriFieldTypeInteger':
+											if (isNaN(val) || val % 1 !== 0 || val < -2147483648 || val > 2147483647) {
+												throw new Error('Parser');
+											}
+											break;
+										case 'esriFieldTypeDouble':
+											if (isNaN(val) || val % 1 === 0 || val < -2.2 * Math.pow(10, 308) || val > 1.8 * Math.pow(10, 308)) {
+												throw new Error('Parser');
+											}
+											break;
+										case 'esriFieldTypeDate':
+											val = Date.parse(val);
+											if (isNaN(val)) {
+												throw new Error('Parser');
+											} else {
+												val = new Date(val);
+											}
+											break;
+										case 'esriFieldTypeString':
+											if (typeof val !== 'string') {
+												throw new Error('Parser');
+											} else if (val.length > field.length) {
+												val = val.substr(0, field.length);
+											}
+											break;
+									}
+
+									update.attributes[field.name] = val;
+								}
+							});
+
+							// Validate Geometry
+							if (this.serviceDefinition.type === 'Feature Layer' && this.serviceDefinition.allowGeometryUpdates && feature.geometry) {
+								var geometry = geometryJsonUtils.fromJson(feature.geometry);
+
+								if (geometry) {
+									if (geometryJsonUtils.getJsonType(geometry) === this.serviceDefinition.geometryType) {
+										update.geometry = geometry;
+									} else {
+										throw new Error('Parser');
+									}
+								}
+							}
+
+							return update;
+						}));
+
+						var updateResults = array.map(query.features, lang.hitch(this, function(feature) {
+							var id = this.store.put(feature);
+							return {
+								objectId: id,
+								success: true
+							};
+						}));
+
+						dfd.resolve({
+							updateResults: updateResults
+						});
+					} else {
+						throw new Error('Parser');
+					}
+				} catch (e) {
+					error = new Error('Unable to complete operation.');
+					error.code = e.message ? 400 : 500;
+					error.details = e.message ? ['Parser error: Some parameters could not be recognized.'] : ['Unable to perform updateFeatures operation.'];
+					dfd.reject(error);
+				}
+			} else {
+				error = new Error('Request operation is not supported by this service.');
 				error.code = 400;
 				error.details = [];
 				dfd.reject(error);
