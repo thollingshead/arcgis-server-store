@@ -909,4 +909,91 @@ define([
 			}, dfd.reject.bind(dfd));
 		}
 	});
+
+	registerSuite({
+		name: 'remove',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		beforeEach: function() {
+			MockFeatureService.reset();
+		},
+		'remove no capability': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var mapStore = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			when(mapStore.remove(1)).then(dfd.reject.bind(dfd), dfd.callback(function(error) {
+				assert.instanceOf(error, Error, 'Map service does not support Delete capability. Should receive an error');
+				assert.strictEqual(error.message, 'Remove not supported.', 'Should receive a custom error message');
+			}));
+		},
+		'remove no id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			// Test
+			when(store.remove()).then(dfd.reject.bind(dfd), dfd.callback(function(error) {
+				assert.instanceOf(error, Error, 'Should receive an error trying to delete.');
+			}));
+		},
+		'remove invalid id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			// Test
+			when(store.remove(12345)).then(dfd.callback(function(success) {
+				assert.isFalse(success, 'Invalid id should not delete features.');
+			}), dfd.reject.bind(dfd));
+		},
+		'remove with id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var oidStore = new ArcGISServerStore({
+				url: featureService
+			});
+
+			var stringStore = new ArcGISServerStore({
+				url: featureService,
+				idProperty: 'NAME'
+			});
+
+			var oid = 1;
+			var nameId = 'Mock Test Point 2';
+			
+			// Test
+			all({
+				oid: when(oidStore.remove(oid)),
+				string: when(stringStore.remove(nameId))
+			}).then(function(results) {
+				all({
+					oid: when(oidStore.get(oid)),
+					string: when(stringStore.get(nameId))
+				}).then(dfd.callback(function(getResults) {
+					assert.isTrue(results.oid, 'Existing id should remove successfully.');
+					assert.isTrue(results.string, 'Existing id with custom idProperty should remove successfully.');
+					assert.isUndefined(getResults.oid, 'Removed id should no longer exist in store.');
+					assert.isUndefined(getResults.string, 'Removed custom id should no longer exist in store.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+		}
+	});
 });

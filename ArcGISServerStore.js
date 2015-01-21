@@ -78,16 +78,19 @@ define([
 			var get = this.get;
 			var add = this.add;
 			var put = this.put;
+			var remove = this.remove;
 
 			_loadDfd.then(lang.hitch(this, function() {
 				this.get = get;
 				this.add = add;
 				this.put = put;
+				this.remove = remove;
 			}));
 
 			this.get = _loadWrapper(this.get, this);
 			this.add = _loadWrapper(this.add, this);
 			this.put = _loadWrapper(this.put, this);
+			this.remove = _loadWrapper(this.remove, this);
 		},
 		/**
 		 * Retrieves and object by its identity
@@ -219,7 +222,29 @@ define([
 		 * @param  {Number} id The identity to use to delete the object
 		 */
 		remove: function(id) {
+			if (this.capabilities.Delete) {
+				var where = '';
+				if (typeof id === 'string') {
+					where = this.idProperty + ' = \'' + id + '\'';
+				} else if (typeof id !== 'undefined') {
+					where = this.idProperty + ' = ' + id;
+				}
 
+				return esriRequest({
+					url: this.url + '/deleteFeatures',
+					content: {
+						f: 'json',
+						where: where
+					},
+					handleAs: 'json'
+				}, {
+					usePost: true
+				}).then(function(response) {
+					return !!(response && response.success);
+				});
+			} else {
+				throw new Error('Remove not supported.');
+			}
 		},
 		/**
 		 * Queries the store for objects. This does not alter the store, but returns
