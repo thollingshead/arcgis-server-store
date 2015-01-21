@@ -181,6 +181,10 @@ define([
 			var updateFeatures = registry.register(/Mock\/FeatureServer\/[0-9]+\/updateFeatures$/, lang.hitch(this, 'updateFeatures'));
 			this.handles.push(updateFeatures);
 
+			// Delete Features
+			var deleteFeatures = registry.register(/Mock\/FeatureServer\/[0-9]+\/deleteFeatures$/, lang.hitch(this, 'deleteFeatures'));
+			this.handles.push(deleteFeatures);
+
 			// Root Info / Unknown Endpoints
 			var info = registry.register(/Mock\/FeatureServer\/[0-9]+.*$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
@@ -234,7 +238,7 @@ define([
 
 
 					var data = array.filter(this.store.query(QueryUtils.parse(query.where)), lang.hitch(this, function(feature) {
-						return !query.objectIds || array.indexOf(query.objectIds, feature.attributes[this.serviceDefinition.objectIdField]);
+						return !query.objectIds || (1 + array.indexOf(query.objectIds, feature.attributes[this.serviceDefinition.objectIdField]));
 					}));
 					if (query.returnCountOnly) {
 						dfd.resolve({
@@ -515,6 +519,47 @@ define([
 				}
 			} else {
 				error = new Error('Request operation is not supported by this service.');
+				error.code = 400;
+				error.details = [];
+				dfd.reject(error);
+			}
+
+			return when(dfd.promise);
+		},
+		deleteFeatures: function(url, query) {
+			var error, dfd = new Deferred();
+			if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Query') !== -1) {
+				try {
+					if (!query.where && !query.objectIds) {
+						throw new Error('Parser');
+					}
+					query.where = query.where || '1=1';
+					query.objectIds = query.objectIds && array.map(query.objectIds.split(','), function(objectId) {
+						return parseInt(objectId, 10);
+					}) || undefined;
+
+					var data = array.filter(this.store.query(QueryUtils.parse(query.where)), lang.hitch(this, function(feature) {
+						return !query.objectIds || (1 + array.indexOf(query.objectIds, feature.attributes[this.serviceDefinition.objectIdField]));
+					}));
+
+					if (data.length) {
+						array.forEach(data, lang.hitch(this, function(feature) {
+							this.store.remove(this.store.getIdentity(feature));
+						}));
+						dfd.resolve({
+							success: true
+						});
+					} else {
+						dfd.resolve({});
+					}
+				} catch (e) {
+					error = new Error('Unable to complete operation.');
+					error.code = 500;
+					error.details = ['Unable to perform deleteFeatures operation.'];
+					dfd.reject(error);
+				}
+			} else {
+				error = new Error('Requested operation is not supported by this service.');
 				error.code = 400;
 				error.details = [];
 				dfd.reject(error);
