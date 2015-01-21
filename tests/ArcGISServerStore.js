@@ -551,6 +551,192 @@ define([
 	});
 
 	registerSuite({
+		name: 'put',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		beforeEach: function() {
+			MockFeatureService.reset();
+		},
+		'put no capability': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var mapStore = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var putObject = {
+				ESRI_OID: 1,
+				NAME: 'Put Object'
+			};
+
+			// Test
+			when(mapStore.put(putObject)).then(dfd.reject.bind(dfd), dfd.callback(function(error) {
+				assert.instanceOf(error, Error, 'Map service does not support Update capability. Should receive an error');
+				assert.strictEqual(error.message, 'Update not supported.', 'Should receive a custom error message');
+			}));
+		},
+		'put no overwrite': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+			store.add = function(object, options) {
+				var dfd = new Deferred();
+				dfd.resolve({
+					object: object,
+					options: options
+				});
+				return dfd.promise;
+			};
+
+			var newObject = {
+				NAME: 'New Object'
+			};
+			var options = {
+				overwrite: false
+			};
+
+			// Test
+			when(store.put(lang.clone(newObject), options)).then(dfd.callback(function(args) {
+				assert.deepEqual(args.object, newObject, 'Should add object without modifying');
+				assert.deepEqual(args.options, options, 'Should add object without modifying options');
+			}), dfd.reject.bind(dfd));
+		},
+		'put overwrite without id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			var putObject = {
+				NAME: 'Put Object'
+			};
+			var options = {
+				overwrite: true
+			};
+
+			// Test
+			when(store.put(putObject, options)).then(dfd.reject.bind(dfd), dfd.callback(function(error) {
+				assert.instanceOf(error, Error, 'Cannot update an object without an id.');
+				assert.strictEqual(error.message, 'Cannot update object with no id.', 'Should receive custom error message');
+			}));
+		},
+		'put overwrite non-existent': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			var putObject = {
+				NAME: 'Put Object'
+			};
+			var options = {
+				overwrite: true,
+				id: 12345
+			};
+
+			// Test
+			when(store.put(putObject, options)).then(dfd.reject.bind(dfd), dfd.callback(function(error) {
+				assert.instanceOf(error, Error, 'Should receive an error trying to update.');
+			}));
+		},
+		'put non-existent': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+			store.add = function(object, options) {
+				var dfd = new Deferred();
+				dfd.resolve({
+					object: object,
+					options: options
+				});
+				return dfd.promise;
+			};
+
+			var newObject = {
+				NAME: 'New Object'
+			};
+			var options = {
+				id: 12345
+			};
+
+			// Test
+			when(store.put(lang.clone(newObject), options)).then(dfd.callback(function(args) {
+				assert.deepEqual(args.object, newObject, 'Should add object without modifying');
+				assert.deepEqual(args.options, options, 'Should add object without modifying options');
+			}), dfd.reject.bind(dfd));
+		},
+		'put without id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+			store.add = function(object, options) {
+				var dfd = new Deferred();
+				dfd.resolve({
+					object: object,
+					options: options
+				});
+				return dfd.promise;
+			};
+
+			var newObject = {
+				NAME: 'New Object',
+				DETAILS: 'There is no id here.'
+			};
+			var options = {};
+
+			// Test
+			when(store.put(lang.clone(newObject), options)).then(dfd.callback(function(args) {
+				assert.deepEqual(args.object, newObject, 'Should add object without modifying');
+				assert.deepEqual(args.options, options, 'Should add object without modifying options');
+			}), dfd.reject.bind(dfd));
+		},
+		'put with id': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			var putObject = {
+				NAME: 'Put Object',
+				ESRI_OID: 5,
+				DETAILS: 'Something new'
+			};
+			var options = {};
+
+			// Test
+			when(store.put(lang.clone(putObject), options)).then(function(id) {
+				putObject[store.idProperty] = id;
+				when(store.get(id)).then(dfd.callback(function(updated) {
+					assert.isDefined(updated.CATEGORY, 'Put should only overwrite fields.');
+					assert.deepEqual(updated, lang.mixin(lang.clone(updated), putObject), 'Put should update object with values.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+		}
+	});
+
+	registerSuite({
 		name: 'add',
 		setup: function() {
 			MockMapService.start();

@@ -3,10 +3,14 @@ define([
 	'dojo/_base/declare',
 	'dojo/_base/lang',
 
+	'dojo/Deferred',
+	'dojo/when',
+
 	'esri/request',
 	'esri/tasks/query'
 ], function(
 	array, declare, lang,
+	Deferred, when,
 	esriRequest, Query
 ) {
 
@@ -73,14 +77,17 @@ define([
 			// Wrap functions until loaded
 			var get = this.get;
 			var add = this.add;
+			var put = this.put;
 
 			_loadDfd.then(lang.hitch(this, function() {
 				this.get = get;
 				this.add = add;
+				this.put = put;
 			}));
 
 			this.get = _loadWrapper(this.get, this);
 			this.add = _loadWrapper(this.add, this);
+			this.put = _loadWrapper(this.put, this);
 		},
 		/**
 		 * Retrieves and object by its identity
@@ -131,7 +138,42 @@ define([
 		 * @return {Number}
 		 */
 		put: function(object, options) {
-
+			options = options || {};
+			var id = ('id' in options) ? options.id : this.getIdentity(object);
+			if (typeof id !== 'undefined' && options.overwrite !== false) {
+				var dfd = new Deferred();
+				when(options.overwrite || this.get(id)).then(lang.hitch(this, function(existing) {
+					if (existing) {
+						if (this.capabilities.Update) {
+							object = this._unflatten(object);
+							lang.setObject('attributes.' + this.idProperty, id, object);
+							esriRequest({
+								url: this.url + '/updateFeatures',
+								content: {
+									f: 'json',
+									features: JSON.stringify([object])
+								},
+								handleAs: 'json'
+							}, {
+								usePost: true
+							}).then(function(response) {
+								if (response.updateResults && response.updateResults.length) {
+									dfd.resolve(response.updateResults[0].success ? response.updateResults[0].objectId : undefined);
+								}
+							}, dfd.reject);
+						} else {
+							dfd.reject(new Error('Update not supported.'));
+						}
+					} else {
+						when(this.add(object, options)).then(dfd.resolve, dfd.reject);
+					}
+				}));
+				return dfd.promise;
+			} else if (options.overwrite) {
+				throw new Error('Cannot update object with no id.');
+			} else {
+				return this.add(object, options);
+			}
 		},
 		/**
 		 * Creates an object, throws an error if the object already exists
