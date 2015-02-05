@@ -159,7 +159,7 @@ define([
 				types: [],
 				templates: [],
 				maxRecordCount: 1000,
-				supportedQueryFormats: 'JSON, AMF',
+				supportedQueryFormats: 'JSON',
 				capabilities: 'Create,Delete,Query,Update,Uploads,Editing',
 				useStandardizedQueries: true
 			};
@@ -240,12 +240,17 @@ define([
 					var data = array.filter(this.store.query(QueryUtils.parse(query.where)), lang.hitch(this, function(feature) {
 						return !query.objectIds || (1 + array.indexOf(query.objectIds, feature.attributes[this.serviceDefinition.objectIdField]));
 					}));
+
+					if (this.serviceDefinition.supportsAdvancedQueries && query.orderByFields) {
+						data.sort(QueryUtils.sort(query.orderByFields));
+					}
+
 					if (query.returnCountOnly) {
 						dfd.resolve({
 							count: data.length
 						});
 					} else if (query.returnIdsOnly) {
-						var ids = array.map(data.sort(QueryUtils.sort(query.orderByFields)), lang.hitch(this, function(feature) {
+						var ids = array.map(data, lang.hitch(this, function(feature) {
 							return feature.attributes[this.serviceDefinition.objectIdField];
 						}));
 						dfd.resolve({
@@ -270,7 +275,7 @@ define([
 						});
 
 						if (query.returnGeometry) {
-							featureSet.features = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+							featureSet.features = array.map(data, function(feature) {
 								var attributes = {};
 
 								array.forEach(featureSet.fields, function(field) {
@@ -283,7 +288,7 @@ define([
 								};
 							});
 						} else {
-							featureSet.features = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+							featureSet.features = array.map(data, function(feature) {
 								var attributes = {};
 
 								array.forEach(featureSet.fields, function(field) {

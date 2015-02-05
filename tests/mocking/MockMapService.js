@@ -144,8 +144,8 @@ define([
 				maxRecordCount: 1000,
 				supportsStatistics: true,
 				supportsAdvancedQueries: true,
-				supportedQueryFormats: 'JSON, AMF',
-				ownershipBasedAccessCOntrolForFeatures: {
+				supportedQueryFormats: 'JSON',
+				ownershipBasedAccessControlForFeatures: {
 					allowOthersToQuery: true
 				},
 				useStandardizedQueries: true
@@ -212,14 +212,19 @@ define([
 					}) || undefined;
 
 					var data = array.filter(this.store.query(QueryUtils.parse(query.where)), function(feature) {
-						return !query.objectIds || array.indexOf(query.objectIds, feature.attributes.ESRI_OID);
+						return !query.objectIds || (1 + array.indexOf(query.objectIds, feature.attributes.ESRI_OID));
 					});
+
+					if (this.serviceDefinition.supportsAdvancedQueries && query.orderByFields) {
+						data.sort(QueryUtils.sort(query.orderByFields));
+					}
+
 					if (query.returnCountOnly) {
 						dfd.resolve({
 							count: data.length
 						});
 					} else if (query.returnIdsOnly) {
-						var ids = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+						var ids = array.map(data, function(feature) {
 							return feature.attributes.ESRI_OID;
 						});
 						dfd.resolve({
@@ -244,7 +249,7 @@ define([
 						});
 
 						if (query.returnGeometry) {
-							featureSet.features = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+							featureSet.features = array.map(data, function(feature) {
 								var attributes = {};
 
 								array.forEach(featureSet.fields, function(field) {
@@ -257,7 +262,7 @@ define([
 								};
 							});
 						} else {
-							featureSet.features = array.map(data.sort(QueryUtils.sort(query.orderByFields)), function(feature) {
+							featureSet.features = array.map(data, function(feature) {
 								var attributes = {};
 
 								array.forEach(featureSet.fields, function(field) {

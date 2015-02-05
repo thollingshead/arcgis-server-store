@@ -3,7 +3,7 @@ define([], function() {
 		fields = fields && fields.split(',') || [];
 		if (fields.length) {
 			var field = fields.shift();
-			var parts = field.match(/(\S+)\s(ASC|DESC)/);
+			var parts = field.match(/(\S+)\s?(ASC|DESC)?/);
 			field = parts[1];
 
 			var next = sort(fields.join(','));
