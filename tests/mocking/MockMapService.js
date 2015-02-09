@@ -62,7 +62,7 @@ define([
 
 		_createService: function() {
 			this.serviceDefinition = {
-				currentVersion: 10.21,
+				currentVersion: 10.3,
 				id: 0,
 				name: 'Mock Service',
 				type: 'Feature Layer',
@@ -148,7 +148,15 @@ define([
 				ownershipBasedAccessControlForFeatures: {
 					allowOthersToQuery: true
 				},
-				useStandardizedQueries: true
+				useStandardizedQueries: true,
+				advancedQueryCapabilities: {
+					useStandardizedQueries: true,
+					supportsStatistics: true,
+					supportsOrderBy: true,
+					supportsDistinct: true,
+					supportsPagination: false,
+					supportsTrueCurve: true
+				}
 			};
 		},
 		_register: function() {
@@ -215,7 +223,7 @@ define([
 						return !query.objectIds || (1 + array.indexOf(query.objectIds, feature.attributes.ESRI_OID));
 					});
 
-					if (this.serviceDefinition.supportsAdvancedQueries && query.orderByFields) {
+					if (this.serviceDefinition.advancedQueryCapabilities.supportsOrderBy && query.orderByFields) {
 						data.sort(QueryUtils.sort(query.orderByFields));
 					}
 
@@ -275,6 +283,21 @@ define([
 							});
 						}
 
+						if (query.hasOwnProperty('resultOffset') || query.hasOwnProperty('resultRecordCount')) {
+							if (this.serviceDefinition.advancedQueryCapabilities.supportsPagination) {
+								query.resultOffset = isNaN(query.resultOffset) ? 0 : Math.round(query.resultOffset);
+								query.resultRecordCount = isNaN(query.resultRecordCount) ? this.service.maxRecordCount : Math.round(query.resultRecordCount);
+								if (query.resultOffset < 0) {
+									throw new Error('resultOffset');
+								} else if (query.resultRecordCount < 0) {
+									throw new Error('resultRecordCount');
+								}
+								featureSet.features = featureSet.features.slice(query.resultOffset, query.resultOffset + query.resultRecordCount);
+							} else {
+								throw new Error('Pagination');
+							}
+						}
+
 						if (featureSet.features.length > this.serviceDefinition.maxRecordCount) {
 							featureSet.features.splice(this.serviceDefinition.maxRecordCount, featureSet.features.length - this.serviceDefinition.maxRecordCount);
 							featureSet.exceededTransferLimit = true;
@@ -283,9 +306,24 @@ define([
 						dfd.resolve(featureSet);
 					}
 				} catch (e) {
-					error = new Error('Unable to complete operation.');
-					error.code = 400;
-					error.details = [];
+					if (e.message === 'Pagination') {
+						error = new Error('Pagination is not supported.');
+						error.code = 400;
+						error.details = [];
+
+					} else if (e.message === 'resultOffset') {
+						error = new Error('resultOffset cannot be negative');
+						error.code = -2147024809;
+						error.details = [];
+					} else if (e.message === 'resultRecordCount') {
+						error = new Error('resultRecordCount has to be positive');
+						error.code = -2147024809;
+						error.details = [];
+					} else {
+						error = new Error('Unable to complete operation.');
+						error.code = 400;
+						error.details = ['Unable to perform query operation.'];
+					}
 					dfd.reject(error);
 				}
 			} else {
