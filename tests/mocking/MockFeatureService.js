@@ -63,7 +63,7 @@ define([
 
 		_createService: function() {
 			this.serviceDefinition = {
-				currentVersion: 10.21,
+				currentVersion: 10.3,
 				id: 0,
 				name: 'Mock Service',
 				type: 'Feature Layer',
@@ -78,6 +78,12 @@ define([
 				supportsRollbackOnFailureParameter: false,
 				supportsStatistics: true,
 				supportsAdvancedQueries: true,
+				advancedQueryCapabilities: {
+					supportsPagination: false,
+					supportsStatistics: true,
+					supportsOrderBy: true,
+					supportsDistinct: true
+				},
 				geometryType: 'esriGeometryPoint',
 				minScale: 0,
 				maxScale: 0,
@@ -241,7 +247,7 @@ define([
 						return !query.objectIds || (1 + array.indexOf(query.objectIds, feature.attributes[this.serviceDefinition.objectIdField]));
 					}));
 
-					if (this.serviceDefinition.supportsAdvancedQueries && query.orderByFields) {
+					if (this.serviceDefinition.advancedQueryCapabilities.supportsOrderBy && query.orderByFields) {
 						data.sort(QueryUtils.sort(query.orderByFields));
 					}
 
@@ -301,6 +307,16 @@ define([
 							});
 						}
 
+						if (query.hasOwnProperty('resultOffset') || query.hasOwnProperty('resultRecordCount')) {
+							if (this.serviceDefinition.advancedQueryCapabilities.supportsPagination) {
+								query.resultOffset = (isNaN(query.resultOffset) || query.resultOffset < 0) ? 0 : Math.round(query.resultOffset);
+								query.resultRecordCount = (isNaN(query.resultRecordCount) || query.resultRecordCount < 0) ? this.serviceDefinition.maxRecordCount : Math.round(query.resultRecordCount);
+								featureSet.features = featureSet.features.slice(query.resultOffset, query.resultOffset + query.resultRecordCount);
+							} else {
+								throw new Error('Pagination');
+							}
+						}
+
 						if (featureSet.features.length > this.serviceDefinition.maxRecordCount) {
 							featureSet.features.splice(this.serviceDefinition.maxRecordCount, featureSet.features.length - this.serviceDefinition.maxRecordCount);
 							featureSet.exceededTransferLimit = true;
@@ -309,9 +325,15 @@ define([
 						dfd.resolve(featureSet);
 					}
 				} catch (e) {
-					error = new Error('Unable to complete operation.');
-					error.code = 400;
-					error.details = ['Unable to perform query operation.'];
+					if (e.message === 'Pagination') {
+						error = new Error('Pagination is not supported.');
+						error.code = 400;
+						error.details = [];
+					} else {
+						error = new Error('Unable to complete operation.');
+						error.code = 400;
+						error.details = ['Unable to perform query operation.'];
+					}
 					dfd.reject(error);
 				}
 			} else {
