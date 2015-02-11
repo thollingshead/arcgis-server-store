@@ -12,6 +12,8 @@ define([
 	'dojo/promise/all',
 	'dojo/when',
 
+	'esri/tasks/query',
+
 	'intern!object',
 	'intern/chai!assert'
 ], function(
@@ -19,6 +21,7 @@ define([
 	MockFeatureService, MockMapService,
 	array, lang,
 	aspect, Deferred, all, when,
+	Query,
 	registerSuite, assert
 ) {
 	var mapService = 'http://localhost/arcgis/rest/services/Mock/MapServer/0';
@@ -978,7 +981,7 @@ define([
 
 			var oid = 1;
 			var nameId = 'Mock Test Point 2';
-			
+
 			// Test
 			all({
 				oid: when(oidStore.remove(oid)),
@@ -994,6 +997,212 @@ define([
 					assert.isUndefined(getResults.string, 'Removed custom id should no longer exist in store.');
 				}), dfd.reject.bind(dfd));
 			}, dfd.reject.bind(dfd));
+		}
+	});
+
+	registerSuite({
+		name: 'query',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		'query no capability': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var mapStore = new ArcGISServerStore({
+				url: mapService
+			});
+			mapStore.capabilities.Data = false;
+
+			var featureStore = new ArcGISServerStore({
+				url: featureService
+			});
+			featureStore.capabilities.Query = false;
+
+			// Test
+			when(mapStore.query()).then(dfd.reject.bind(dfd), function(mapError) {
+				when(featureStore.query()).then(dfd.reject.bind(dfd), dfd.callback(function(featureError) {
+					assert.instanceOf(mapError, Error, 'Custom map service does not support Data capability. Should receive an error');
+					assert.strictEqual(mapError.message, 'Query not supported.', 'Should receive a custom error message');
+					assert.instanceOf(featureError, Error, 'Custom feature service does not support Query capability. Should receive an error');
+					assert.strictEqual(featureError.message, 'Query not supported.', 'Should receive a custom error message');
+				}));
+			});
+		},
+		'query no parameters': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			// Test
+			var query = store.query();
+			when(query).then(function(results) {
+				when(query.total).then(dfd.callback(function(count) {
+					assert.strictEqual(results.length, 150, 'Default query should return all objects.');
+					assert.strictEqual(results.length, count, 'Total should return an accurate count.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+		},
+		'query override defaults': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService,
+				flatten: false,
+				idProperty: 'CATEGORY',
+				returnGeometry: false,
+				outFields: ['CATEGORY']
+			});
+
+			var query = new Query();
+			query.where = 'ESRI_OID IN (1, 2, 3)';
+			query.outFields = ['ESRI_OID'];
+			query.returnGeometry = true;
+
+			// Test
+			when(store.query(query)).then(dfd.callback(function(results) {
+				assert.isUndefined(results[0].geometry, 'returnGeometry should not be overidden by query object');
+				assert.isDefined(results[0].attributes.ESRI_OID, 'outFields should be overidden by query object');
+				assert.strictEqual(results.length, 3, 'Query where property should be used');
+			}), dfd.reject.bind(dfd));
+		},
+		'query options sort': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var query = new Query();
+			query.where = 'ESRI_OID IN (16, 5, 9, 13, 7)';
+
+			var options = {
+				sort: [{
+					attribute: 'CATEGORY',
+					descending: true
+				}]
+			};
+
+			// Test
+			when(store.query(query, options)).then(dfd.callback(function(results) {
+				var isOrdered = array.every(results, function(result, i) {
+					if (i) {
+						return result.CATEGORY <= results[i - 1].CATEGORY;
+					}
+					return true;
+				});
+				assert.isTrue(isOrdered, 'Query should support sort options');
+			}), dfd.reject.bind(dfd));
+		},
+		'query supported pagination': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var supportsPagination = lang.getObject('serviceDefinition.advancedQueryCapabilities.supportsPagination', false, MockFeatureService);
+			lang.setObject('serviceDefinition.advancedQueryCapabilities.supportsPagination', true, MockFeatureService);
+
+			var store = new ArcGISServerStore({
+				url: featureService,
+				idProperty: 'CATEGORY'
+			});
+
+			var query = new Query();
+			var options = {
+				start: 10,
+				count: 25
+			};
+
+			// Test
+			query = store.query(query, options);
+			when(query).then(function(results) {
+				when(query.total).then(dfd.callback(function(count) {
+					var isOrdered = array.every(results, function(result, i) {
+						if (i) {
+							return result.CATEGORY >= results[i - 1].CATEGORY;
+						}
+						return true;
+					});
+
+					assert.isTrue(isOrdered, 'Paging results should sort by idProperty');
+					assert.strictEqual(results.length, options.count, 'Paging results should return specified number of objects');
+					assert.strictEqual(count, 150, 'Paging results should return correct total.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+
+			// Teardown
+			MockFeatureService.serviceDefinition.advancedQueryCapabilities.supportsPagination = supportsPagination;
+		},
+		'query unsupported pagination': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var query = new Query();
+			query.where = 'ESRI_OID <= 100';
+			var options = {
+				start: 10,
+				count: 35
+			};
+
+			// Test
+			query = store.query(query, options);
+			when(query).then(function(results) {
+				when(query.total).then(dfd.callback(function(count) {
+					assert.strictEqual(results[0].ESRI_OID, options.start + 1, 'Paging results should begin at specified start position.');
+					assert.strictEqual(results.length, options.count, 'Paging results should return specified number of objects');
+					assert.strictEqual(count, 100, 'Paging results should return correct total.');
+				}));
+			}, dfd.reject.bind(dfd));
+		},
+		'query unsupported pagination exceeded count': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var query = new Query();
+			query.orderByFields = ['ESRI_OID'];
+			var options = {
+				start: 10,
+				count: 10000
+			};
+
+			var warn = console.warn;
+			var warnings = [];
+			console.warn = function() {
+				array.forEach(arguments, function(arg) {
+					warnings.push(arg);
+				});
+			};
+
+			// Test
+			when(store.query(query, options)).then(dfd.callback(function(results) {
+				assert.sameMembers(warnings, ['Cannot return more than ' + MockFeatureService.serviceDefinition.maxRecordCount + ' items.'], 'Log warning message when paging count is to large');
+				assert.strictEqual(results[0].ESRI_OID, options.start + 1, 'Paging results should begin at specified start position');
+
+				// Fail if too many
+				if (results.length > Math.min(options.count, MockMapService.serviceDefinition.maxRecordCount)) {
+					assert.strictEqual(results.length, Math.min(options.count, MockMapService.serviceDefinition.maxRecordCount), 'Paging results should return specified number of objects');
+				}
+			}), dfd.reject.bind(dfd));
+
+			// Teardown
+			console.warn = warn;
 		}
 	});
 });
