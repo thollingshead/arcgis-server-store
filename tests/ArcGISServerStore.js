@@ -1203,6 +1203,37 @@ define([
 
 			// Teardown
 			console.warn = warn;
+		},
+		'query object expression': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var query = {
+				DETAILS: 'Mocked',
+				ESRI_OID: 3
+			};
+
+			var options = {
+				start: Infinity,
+				count: Infinity
+			};
+
+			// Test
+			when(store.query(query, options)).then(dfd.callback(function(results) {
+				var match = array.every(results, function(result) {
+					for (var prop in query) {
+						if (query[prop] !== result[prop]) {
+							return false;
+						}
+					}
+					return true;
+				});
+				assert.isTrue(match, 'Results attributes should match query attributes');
+			}), dfd.reject.bind(dfd));
 		}
 	});
 });

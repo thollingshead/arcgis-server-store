@@ -279,7 +279,7 @@ define([
 		 * @return {Object}                         The results of the query, extended with iterative methods.
 		 */
 		query: function(query, options) {
-			query = lang.mixin(new Query(), query);
+			query = (query instanceof Query) ? query : this._objectToQuery(query);
 			options = options || {};
 
 			if (this._serviceInfo.templates ? !this.capabilities.Query : !this.capabilities.Data) {
@@ -298,8 +298,8 @@ define([
 				}
 
 				var paginate = false;
-				options.start = options.start || 0;
-				options.count = options.count || 0;
+				options.start = isFinite(options.start) ? options.start : 0;
+				options.count = isFinite(options.count) ? options.count : 0;
 				if (options.start > 0 || options.count > 0) {
 					if (options.count > this._serviceInfo.maxRecordCount) {
 						console.warn('Cannot return more than ' + this._serviceInfo.maxRecordCount + ' items.');
@@ -503,6 +503,50 @@ define([
 
 			// Set loaded
 			this._loaded = true;
+		},
+		/**
+		 * Parses an object hash to a SQL where clause
+		 * @param  {Object} object Object hash
+		 * @return {Object}        Query object with where clause
+		 */
+		_objectToQuery: function(object) {
+			var escape = false;
+			var clauses = [];
+			for (var key in object) {
+				if (object.hasOwnProperty(key)) {
+					value = object[key];
+					if (value instanceof RegExp && typeof value.toString === 'function') {
+						var value = value.toString();
+
+						// Replace JavaScript special characters with SQL special characters
+						value = value.replace(/(\\\\)|(%|_)|(\\\*|\\\?)|(\*)|(\?)/g, function(str, backslash, special, literal, star, question) {
+							escape = escape || !!special;
+							return special ? '\\' + str : literal ? literal[1] : star ? '%' : question ? '_' : str;
+						});
+
+						clauses.push(key + ' LIKE \'' + value + '\'');
+					} else if (typeof value === 'string') {
+						value = value.replace(/(\\|%|_)/g, function(str) {
+							return '\\' + str;
+						});
+						clauses.push(key + ' = \'' + value + '\'');
+					} else {
+						clauses.push(key + ' = ' + value);
+					}
+				}
+			}
+
+			if (!escape) {
+				clauses = array.map(clauses, function(clause) {
+					return clause.replace(/(\\.)/g, function(str) {
+						return str[1];
+					});
+				});
+			}
+
+			var query = new Query();
+			query.where = clauses.join(' AND ') + (escape ? ' ESCAPE \'\\\'' : '');
+			return query;
 		}
 	});
 });
