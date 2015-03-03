@@ -88,7 +88,8 @@ define([
 					content: {
 						f: 'json'
 					},
-					handleAs: 'json'
+					handleAs: 'json',
+					callbackParamName: 'callback'
 				}).then(lang.hitch(this, '_initStore'), function(error) {
 					throw new Error('Invalid url. Cannot create store.');
 				});
@@ -141,7 +142,8 @@ define([
 					content: lang.mixin(query.toJson(), {
 						f: 'json'
 					}),
-					handleAs: 'json'
+					handleAs: 'json',
+					callbackParamName: 'callback'
 				}).then(lang.hitch(this, function(featureSet) {
 					if (featureSet.features && featureSet.features.length) {
 						return this.flatten ? this._flatten(featureSet.features[0]) : featureSet.features[0];
@@ -181,7 +183,8 @@ define([
 									f: 'json',
 									features: JSON.stringify([object])
 								},
-								handleAs: 'json'
+								handleAs: 'json',
+								callbackParamName: 'callback'
 							}, {
 								usePost: true
 							}).then(function(response) {
@@ -226,7 +229,8 @@ define([
 						f: 'json',
 						features: JSON.stringify([object])
 					},
-					handleAs: 'json'
+					handleAs: 'json',
+					callbackParamName: 'callback'
 				}, {
 					usePost: true
 				}).then(lang.hitch(this, function(response) {
@@ -261,7 +265,8 @@ define([
 						f: 'json',
 						where: where
 					},
-					handleAs: 'json'
+					handleAs: 'json',
+					callbackParamName: 'callback'
 				}, {
 					usePost: true
 				}).then(function(response) {
@@ -326,7 +331,8 @@ define([
 							returnIdsOnly: true,
 							f: 'json'
 						}),
-						handleAs: 'json'
+						handleAs: 'json',
+						callbackParamName: 'callback'
 					}).then(lang.hitch(this, function(response) {
 						if (response.objectIds) {
 							query.where = '';
@@ -336,7 +342,8 @@ define([
 								content: lang.mixin(query.toJson(), {
 									f: 'json'
 								}),
-								handleAs: 'json'
+								handleAs: 'json',
+								callbackParamName: 'callback'
 							}).then(lang.hitch(this, function(featureSet) {
 								if (this.flatten) {
 									featureSet.features = array.map(featureSet.features, lang.hitch(this, function(feature) {
@@ -357,7 +364,8 @@ define([
 						content: lang.mixin(query.toJson(), {
 							f: 'json'
 						}),
-						handleAs: 'json'
+						handleAs: 'json',
+						callbackParamName: 'callback'
 					}).then(lang.hitch(this, function(featureSet) {
 						if (paginate) {
 							featureSet.features = featureSet.features.slice(options.start, options.start + options.count);
@@ -378,7 +386,8 @@ define([
 							returnCountOnly: true,
 							f: 'json'
 						}),
-						handleAs: 'json'
+						handleAs: 'json',
+						callbackParamName: 'callback'
 					}).then(function(response) {
 						return response.count;
 					});
