@@ -330,6 +330,7 @@ define([
 					dfd.total = esriRequest({
 						url: this.url + '/query',
 						content: lang.mixin(query.toJson(), {
+							orderByFields: '',
 							returnIdsOnly: true,
 							f: 'json'
 						}),
@@ -385,6 +386,7 @@ define([
 					dfd.total = esriRequest({
 						url: this.url + '/query',
 						content: lang.mixin(query.toJson(), {
+							orderByFields: '',
 							returnCountOnly: true,
 							f: 'json'
 						}),
