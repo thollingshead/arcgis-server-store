@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+		<title>dojo-esri-arcgis-server-store</title>
+		<link rel="stylesheet" href="//js.arcgis.com/3.13/esri/css/esri.css">
+		<link rel="stylesheet" href="//js.arcgis.com/3.13/dijit/themes/claro/claro.css">
+		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+		<style>
+			.remove {
+				cursor: pointer;
+			}
+
+			.remove:hover {
+				color: blue;
+			}
+
+			.dgrid-column-0 {
+				width: 20px;
+			}
+
+			.dgrid-column-1 {
+				width: 100px;
+			}
+
+			.dgrid-column-2 {
+				width: 150px;
+			}
+
+			.dgrid-column-4 {
+				width: 120px;
+			}
+		</style>
+	</head>
+	<body class="claro">
+		<div>SF 311 Incidents</div>
+		<div id="grid"></div>
+		<div id="addButton"></div>
+		<div id="saveButton"></div>
+		<script>
+			var dojoConfig = {
+				async: true,
+				packages: [{
+					name: 'store',
+					location: location.pathname.substring(0, location.pathname.lastIndexOf('/')) + '/../'
+				}]
+			};
+		</script>
+		<script src="//js.arcgis.com/3.13/"></script>
+		<script>
+			require([
+				'dgrid/OnDemandGrid',
+				'dgrid/editor',
+				'dgrid/Keyboard',
+
+				'dijit/form/Button',
+
+				'dojo/_base/declare',
+				'dojo/store/Cache',
+				'dojo/store/Memory',
+				'dojo/store/Observable',
+				'dojo/when',
+
+				'store/ArcGISServerStore'
+			], function(
+				OnDemandGrid, editor, Keyboard,
+				Button,
+				declare, Cache, Memory, Observable, when,
+				ArcGISServerStore
+			) {
+				var KeyboardGrid = declare([OnDemandGrid, Keyboard]);
+
+				// Create store
+				var agsStore = new ArcGISServerStore({
+					url: 'http://sampleserver6.arcgisonline.com/arcgis/rest/services/SF311/FeatureServer/1',
+					flatten: true,
+					returnGeometry: false
+				});
+				var store = new Observable(agsStore);
+
+				// Build dgrid
+				var grid = new KeyboardGrid({
+					store: store,
+					sort: [{
+						attribute: 'objectid',
+						descending: true
+					}],
+					columns: [
+						{
+							field: 'remove',
+							label: '',
+							renderCell: function(object, value, node, options) {
+								node.innerHTML = '<div class="remove" title="Delete"><i class="fa fa-times"></i></div>';
+							}
+						},
+						editor({
+							label: 'Incident #',
+							field: 'incidntnum',
+							editor: 'text',
+							editOn: 'click',
+							autoSave: true
+						}),
+						editor({
+							label: 'Category',
+							field: 'category',
+							editor: 'text',
+							editOn: 'click',
+							autoSave: true
+						}),
+						editor({
+							label: 'Description',
+							field: 'descript',
+							editor: 'text',
+							editOn: 'click',
+							autoSave: true
+						}),
+						editor({
+							label: 'District',
+							field: 'pddistrict',
+							editor: 'text',
+							editOn: 'click',
+							autoSave: true
+						})
+					]
+				}, 'grid');
+				grid.startup();
+
+				grid.on('.dgrid-cell:click', function(evt) {
+					var cell = grid.cell(evt);
+					var column = cell.column;
+					var obj = cell.row.data;
+					console.log(obj);
+					if (column.field === 'remove') {
+						grid.store.remove(grid.store.getIdentity(obj));
+					}
+				});
+
+				// Build buttons
+				var add = new Button({
+					label: 'Add '
+				}, 'addButton');
+				add.on('click', function() {
+					grid.store.add({
+						incidntnum: '',
+						category: '',
+						descript: '',
+						pddistrict: ''
+					});
+				});
+			});
+		</script>
+	</body>
+</html>
