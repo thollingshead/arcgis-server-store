@@ -175,7 +175,7 @@ define([
 				when(options.overwrite || this.get(id)).then(lang.hitch(this, function(existing) {
 					if (existing) {
 						if (this.capabilities.Update) {
-							object = this._unflatten(object);
+							object = this._unflatten(lang.clone(object));
 							lang.setObject('attributes.' + this.idProperty, id, object);
 							esriRequest({
 								url: this.url + '/updateFeatures',
@@ -216,8 +216,8 @@ define([
 			options = options || {};
 			if (this.capabilities.Create) {
 				var id = ('id' in options) ? options.id : this.getIdentity(object);
-				object = this._unflatten(object);
-				object.attributes[this.idProperty] = id;
+				var clone = this._unflatten(lang.clone(object));
+				lang.setObject('attributes.' + this.idProperty, id, clone);
 
 				if (typeof id != 'undefined' && this.idProperty === this._serviceInfo.objectIdField) {
 					console.warn('Cannot set id on new object.');
@@ -227,7 +227,7 @@ define([
 					url: this.url + '/addFeatures',
 					content: {
 						f: 'json',
-						features: JSON.stringify([object])
+						features: JSON.stringify([clone])
 					},
 					handleAs: 'json',
 					callbackParamName: 'callback'
@@ -236,7 +236,9 @@ define([
 				}).then(lang.hitch(this, function(response) {
 					if (response.addResults && response.addResults.length) {
 						if (this.idProperty === this._serviceInfo.objectIdField) {
-							return response.addResults[0].success ? response.addResults[0].objectId : undefined;
+							var oid = response.addResults[0].success ? response.addResults[0].objectId : undefined;
+							lang.setObject((this.flatten ? '' : 'attributes.') + this.idProperty, oid, object);
+							return oid;
 						} else {
 							return response.addResults[0].success ? id : undefined;
 						}
