@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+		<title>dojo-esri-arcgis-server-store</title>
+		<link rel="stylesheet" href="//js.arcgis.com/3.13/esri/css/esri.css">
+		<link rel="stylesheet" href="//js.arcgis.com/3.13/dijit/themes/claro/claro.css">
+	</head>
+	<body class="claro">
+		<label for="pop_class">Population Class:</label>
+		<input id="popClassSelect" name="pop_class"></input>
+		<div id="grid"></div>
+		<script>
+			var dojoConfig = {
+				async: true,
+				packages: [{
+					name: 'store',
+					location: location.pathname.substring(0, location.pathname.lastIndexOf('/')) + '/../'
+				}]
+			};
+		</script>
+		<script src="//js.arcgis.com/3.13/"></script>
+		<script>
+			require([
+				'dgrid/OnDemandGrid',
+				'dgrid/extensions/Pagination',
+
+				'dijit/form/Select',
+
+				'dojo/_base/declare',
+				'dojo/data/ObjectStore',
+				'dojo/store/Memory',
+
+				'esri/tasks/query',
+
+				'store/ArcGISServerStore'
+			], function(
+				OnDemandGrid, Pagination,
+				Select,
+				declare, ObjectStore, Memory,
+				Query,
+				ArcGISServerStore
+			) {
+				var PaginationGrid = declare([OnDemandGrid, Pagination]);
+
+				// Create store
+				var store = new ArcGISServerStore({
+					url: 'http://sampleserver6.arcgisonline.com/arcgis/rest/services/SampleWorldCities/MapServer/0',
+					flatten: true,
+					returnGeometry: false
+				});
+
+				// Create Population Class Select
+				var popClassesStore = new Memory({
+					data: [{
+						id: 0,
+						label: 'All'
+					}]
+				});
+				var popClassSelect = new Select({
+					store: new ObjectStore(popClassesStore),
+					sortByLabel: false
+				}, 'popClassSelect');
+				popClassSelect.startup();
+
+				// Load population classes
+				var popClassQuery = new Query();
+				popClassQuery.outFields = ['POP_CLASS'];
+				popClassQuery.returnDistinctValues = true;
+				
+				store.query(popClassQuery).then(function(popClasses) {
+					// Sort by label string
+					popClasses.sort(function(a, b) {
+						a = a.POP_CLASS.match(/[^0-9]*([0-9,]*)/)[1];
+						a = parseInt(a.replace(/,/g, ''), 10);
+						b = b.POP_CLASS.match(/[^0-9]*([0-9,]*)/)[1];
+						b = parseInt(b.replace(/,/g, ''), 10);
+						return b - a;
+					});
+
+
+					// Add population classes to store
+					popClasses.forEach(function(popClass, i) {
+						popClassesStore.put({
+							id: i + 1,
+							label: popClass.POP_CLASS
+						});
+					});
+
+					// Update select with values
+					popClassSelect.setStore(new ObjectStore(popClassesStore));
+				});
+
+				// Build dgrid
+				var grid = new PaginationGrid({
+					store: store,
+					sort: [{
+						attribute: 'POP',
+						descending: true
+					}],
+					columns: {
+						CITY_NAME: {
+							label: 'Name'
+						},
+						POP: {
+							label: 'Population'
+						}
+					},
+					pageSizeOptions: [10, 25, 50],
+					pagingLinks: 3,
+					pagingTextBox: false,
+					firstLasArrows: true
+				}, 'grid');
+				grid.startup();
+
+				// Update grid on selection
+				popClassSelect.on('change', function(value) {
+					var label = popClassesStore.get(value).label;
+					if (label !== 'All') {
+						grid.set('query', {POP_CLASS: label});
+					} else {
+						grid.set('query', {});
+					}
+				});
+
+			});
+		</script>
+	</body>
+</html>
