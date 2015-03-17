@@ -16,10 +16,10 @@ module.exports = function(grunt) {
 		esri_slurp: {
 			dev: {
 				options: {
-					version: '3.10',
-					packageLocation: 'tests/libs/esri',
+					version: '3.13',
 					beautify: true
-				}
+				},
+				dest: 'tests/libs/esri'
 			}
 		},
 		'bower-install-simple': {

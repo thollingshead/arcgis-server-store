@@ -1,15 +1,33 @@
 {
 	"name": "dojo-esri-arcgis-server-store",
 	"version": "v0.0.1",
-	"author": "thollingshead <thollingshead@esri.com>",
-	"year": "2014",
-	"repository": "https://github.com/thollingshead/dojo-esri-arcgis-server-store",
-	"dependencies": {
+	"description": "An implementation of the dojo/store API for ArcGIS Server REST services",
+	"keywords": ["Esri", "ArcGIS", "Dojo", "store"],
+	"author": {
+		"name": "Tim Hollingshead",
+		"email": "thollingshead@esri.com",
+		"url": "https://github.com/thollingsheadesri"
+	},
+	"contributors": [{
+		"name": "Jacob Wasilkowski",
+		"email": "jwasilkowski@esri.com",
+		"url": "https://github.com/jwasil"
+	}],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store.git"
+	},
+	"bugs": {
+		"url": "https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store/issues"
+	},
+	"license": "MIT",
+	"main": "ArcGISServerStore.js",
+	"devDependencies": {
 		"grunt": "*",
 		"grunt-contrib-jshint": "0.x.x",
 		"grunt-contrib-watch": "0.x.x",
 		"grunt-bower-install-simple": "0.x.x",
-		"grunt-esri-slurp": "^0.6.3",
+		"grunt-esri-slurp": "^1.4.1",
 		"intern": ">=2.1.0"
 	}
 }
