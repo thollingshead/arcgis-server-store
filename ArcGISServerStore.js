@@ -120,7 +120,7 @@ define([
 		},
 		/**
 		 * Retrieves and object by its identity
-		 * @param  {Number} id The identity to use to lookup the object
+		 * @param  {Number|String} id The identity to use to lookup the object
 		 * @return {Object}
 		 */
 		get: function(id) {
@@ -250,7 +250,7 @@ define([
 		},
 		/**
 		 * Deletes an object by its identity
-		 * @param  {Number} id The identity to use to delete the object
+		 * @param  {Number|String} id The identity to use to delete the object
 		 */
 		remove: function(id) {
 			if (this.capabilities.Delete) {
@@ -281,9 +281,9 @@ define([
 		/**
 		 * Queries the store for objects. This does not alter the store, but returns
 		 * a set of data from the store.
-		 * @param  {String|Object|Function} query   The query to use for retrieving objects from the store
-		 * @param  {Object} options                 Optional arguments to apply to the result set
-		 * @return {Object}                         The results of the query, extended with iterative methods.
+		 * @param  {String|Object} query   The query to use for retrieving objects from the store
+		 * @param  {Object} options        Optional arguments to apply to the result set
+		 * @return {Object}                The results of the query, extended with iterative methods.
 		 */
 		query: function(query, options) {
 			query = (query instanceof Query) ? query : this._objectToQuery(query);
@@ -399,31 +399,6 @@ define([
 
 				return QueryResults(dfd); // jshint ignore:line
 			}
-		},
-		/**
-		 * Starts a new transaction.
-		 * @return {Object}
-		 */
-		transaction: function() {
-
-		},
-		/**
-		 * Retrieves the children of an object
-		 * @param  {Object} parent  The object of which to find children.
-		 * @param  {Object} options Additional options to apply to the retrieval of the children.
-		 * @return {Object}         A result set of the children of the parent object.
-		 */
-		getChildren: function(parent, options) {
-
-		},
-		/**
-		 * Returns any metadata about the object. This may include attribution,
-		 * cache directives, history, or version information.
-		 * @param  {Object} object The object for which to return metadata.
-		 * @return {Object}
-		 */
-		getMetadata: function(object) {
-
 		},
 		/**
 		 * Flatten attributes to top-level object
