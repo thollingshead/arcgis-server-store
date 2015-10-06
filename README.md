@@ -14,6 +14,20 @@ for ArcGIS Server REST services.
 
 ## Usage
 
+#### Install
+
+Download, clone, or fork from GitHub, or install using a package manager.
+
+Bower:
+```bash
+bower install --save arcgis-server-store
+```
+
+NPM:
+```bash
+npm install --save arcgis-server-store
+```
+
 #### Setup
 
 Configure the Dojo loader for use with the ArcGISServerStore. 
@@ -46,7 +60,8 @@ require([
 ) {
 	var url = 'http://example.com/path/to/service/FeatureServer/0';
 
-	var store = new ArcGISServerStore(url, {
+	var store = new ArcGISServerStore({
+		url: url,
 		idProperty: 'OBJECTID',
 		flatten: true,
 		outFields: ['NAME', 'CATEGORY'],
