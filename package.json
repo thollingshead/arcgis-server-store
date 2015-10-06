@@ -1,6 +1,6 @@
 {
-	"name": "dojo-esri-arcgis-server-store",
-	"version": "v1.0.0",
+	"name": "arcgis-server-store",
+	"version": "v1.0.1",
 	"description": "An implementation of the dojo/store API for ArcGIS Server REST services",
 	"keywords": ["Esri", "ArcGIS", "Dojo", "store"],
 	"author": {
@@ -15,10 +15,10 @@
 	}],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store.git"
+		"url": "https://github.com/thollingsheadesri/arcgis-server-store.git"
 	},
 	"bugs": {
-		"url": "https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store/issues"
+		"url": "https://github.com/thollingsheadesri/arcgis-server-store/issues"
 	},
 	"license": "MIT",
 	"main": "ArcGISServerStore.js",

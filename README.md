@@ -1,4 +1,4 @@
-#dojo-esri-arcgis-server-store
+#arcgis-server-store
 
 An implementation of the 
 [dojo/store API](http://dojotoolkit.org/reference-guide/1.10/dojo/store.html) 
@@ -35,7 +35,7 @@ for more details on configuring the AMD loader.
 #### Create a Store
 
 Create a store using an ArcGIS REST service. See the 
-[properties section](https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store/blob/master/docs/ArcGISServerStore.md#property-summary) 
+[properties section](https://github.com/thollingsheadesri/arcgis-server-store/blob/master/docs/ArcGISServerStore.md#property-summary) 
 for more details on the available options.
 
 ```JavaScript
@@ -99,14 +99,14 @@ store.remove(1);
 ```
 
 Refer to the 
-[ArcGISServerStore documentation](https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store/blob/master/docs/ArcGISServerStore.md) 
+[ArcGISServerStore documentation](https://github.com/thollingsheadesri/arcgis-server-store/blob/master/docs/ArcGISServerStore.md) 
 for more information.
 
 
 ## Reporting Issues
 
 Find a bug or want to suggest an improvement? Please 
-[submit an issue.](https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store/issues)
+[submit an issue.](https://github.com/thollingsheadesri/arcgis-server-store/issues)
 
 
 ## Contributing
@@ -145,4 +145,4 @@ inside the repositories root directory.
 ## License
 
 This project is available under the 
-[MIT License](https://github.com/thollingsheadesri/dojo-esri-arcgis-server-store/blob/master/LICENSE).
+[MIT License](https://github.com/thollingsheadesri/arcgis-server-store/blob/master/LICENSE).
