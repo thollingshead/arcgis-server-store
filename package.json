@@ -29,5 +29,6 @@
 		"grunt-bower-install-simple": "0.x.x",
 		"grunt-esri-slurp": "^1.4.1",
 		"intern": ">=2.1.0"
-	}
+	},
+	"dojoBuild": "profile.js"
 }
