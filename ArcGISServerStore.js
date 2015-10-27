@@ -19,7 +19,10 @@ define([
 	var _loadWrapper = function(callback, context) {
 		return function() {
 			var args = arguments;
-			return _loadDfd.then(function() {
+			return _loadDfd.then(function(res) {
+				if (!context._loaded) {
+					context._initStore(res);
+				}
 				return callback.apply(context, args);
 			});
 		};
@@ -31,7 +34,10 @@ define([
 			dfd.total = new Deferred();
 
 			var args = arguments;
-			_loadDfd.then(function() {
+			_loadDfd.then(function(res) {
+				if (!context._loaded) {
+					context._initStore(res);
+				}
 				try {
 					var callbackDfd = callback.apply(context, args);
 					callbackDfd.then(dfd.resolve, dfd.reject);
@@ -90,8 +96,6 @@ define([
 					},
 					handleAs: 'json',
 					callbackParamName: 'callback'
-				}).then(lang.hitch(this, '_initStore'), function(error) {
-					throw new Error('Invalid url. Cannot create store.');
 				});
 			} else {
 				throw new Error('Missing required property: \'url\'.');
@@ -104,13 +108,16 @@ define([
 			var remove = this.remove;
 			var query = this.query;
 
-			_loadDfd.then(lang.hitch(this, function() {
+			_loadDfd.then(lang.hitch(this, function(res) {
+				this._initStore(res);
 				this.get = get;
 				this.add = add;
 				this.put = put;
 				this.remove = remove;
 				this.query = query;
-			}));
+			})/*, function(error) {
+				throw new Error('Invalid url. Cannot create store.');
+			}*/);
 
 			this.get = _loadWrapper(this.get, this);
 			this.add = _loadWrapper(this.add, this);
