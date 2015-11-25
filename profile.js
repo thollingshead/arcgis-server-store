@@ -6,6 +6,9 @@ var profile = (function(){
             },
             amd: function(filename, mid) {
                 return /ArcGISServerStore\.js$/.test(filename) && !/tests/.test(filename);
+            },
+            miniExclude: function (filename, mid) {
+                return !/ArcGISServerStore\.js$/.test(filename) && !/LICENSE/.test(filename);
             }
         }
     };
