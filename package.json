@@ -1,12 +1,12 @@
 {
 	"name": "arcgis-server-store",
-	"version": "v1.0.2",
+	"version": "v1.0.3",
 	"description": "An implementation of the dojo/store API for ArcGIS Server REST services",
 	"keywords": ["Esri", "ArcGIS", "Dojo", "store"],
 	"author": {
 		"name": "Tim Hollingshead",
 		"email": "thollingshead@esri.com",
-		"url": "https://github.com/thollingsheadesri"
+		"url": "https://github.com/thollingshead"
 	},
 	"contributors": [{
 		"name": "Jacob Wasilkowski",
@@ -15,10 +15,10 @@
 	}],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/thollingsheadesri/arcgis-server-store.git"
+		"url": "https://github.com/thollingshead/arcgis-server-store.git"
 	},
 	"bugs": {
-		"url": "https://github.com/thollingsheadesri/arcgis-server-store/issues"
+		"url": "https://github.com/thollingshead/arcgis-server-store/issues"
 	},
 	"license": "MIT",
 	"main": "ArcGISServerStore.js",
