@@ -15,23 +15,22 @@ define([
 	esriRequest, Query
 ) {
 
-	var _loadDfd;
-	var _loadWrapper = function(callback, context) {
+	var _loadWrapper = function(deferred, callback, context) {
 		return function() {
 			var args = arguments;
-			return _loadDfd.then(function() {
+			return deferred.then(function() {
 				return callback.apply(context, args);
 			});
 		};
 	};
 
-	var _loadQueryWrapper = function(callback, context) {
+	var _loadQueryWrapper = function(deferred, callback, context) {
 		return function() {
 			var dfd = new Deferred();
 			dfd.total = new Deferred();
 
 			var args = arguments;
-			_loadDfd.then(function() {
+			deferred.then(function() {
 				try {
 					var callbackDfd = callback.apply(context, args);
 					callbackDfd.then(dfd.resolve, dfd.reject);
@@ -83,16 +82,14 @@ define([
 
 			// Get Service Info
 			if (this.url) {
-				_loadDfd = esriRequest({
+				var loadDfd = esriRequest({
 					url: this.url,
 					content: {
 						f: 'json'
 					},
 					handleAs: 'json',
 					callbackParamName: 'callback'
-				}).then(lang.hitch(this, '_initStore'), function(error) {
-					throw new Error('Invalid url. Cannot create store.');
-				});
+				}).then(lang.hitch(this, '_initStore'));
 			} else {
 				throw new Error('Missing required property: \'url\'.');
 			}
@@ -104,7 +101,7 @@ define([
 			var remove = this.remove;
 			var query = this.query;
 
-			_loadDfd.then(lang.hitch(this, function() {
+			loadDfd.then(lang.hitch(this, function() {
 				this.get = get;
 				this.add = add;
 				this.put = put;
@@ -112,11 +109,11 @@ define([
 				this.query = query;
 			}));
 
-			this.get = _loadWrapper(this.get, this);
-			this.add = _loadWrapper(this.add, this);
-			this.put = _loadWrapper(this.put, this);
-			this.remove = _loadWrapper(this.remove, this);
-			this.query = _loadQueryWrapper(this.query, this);
+			this.get = _loadWrapper(loadDfd, this.get, this);
+			this.add = _loadWrapper(loadDfd, this.add, this);
+			this.put = _loadWrapper(loadDfd, this.put, this);
+			this.remove = _loadWrapper(loadDfd, this.remove, this);
+			this.query = _loadQueryWrapper(loadDfd, this.query, this);
 		},
 		/**
 		 * Retrieves and object by its identity
