@@ -1,6 +1,6 @@
 {
 	"name": "arcgis-server-store",
-	"version": "v1.0.4",
+	"version": "v1.0.5",
 	"description": "An implementation of the dojo/store API for ArcGIS Server REST services",
 	"keywords": ["Esri", "ArcGIS", "Dojo", "store"],
 	"author": {
