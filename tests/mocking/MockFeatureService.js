@@ -18,6 +18,46 @@ define([
 	Deferred, registry, when,
 	geometryJsonUtils, FeatureSet
 ) {
+	var validateField = function(field, feature) {
+		var value = lang.getObject('attributes.' + field.name, false, feature);
+		if (value !== undefined) {
+			switch (field.type) {
+				case 'esriFieldTypeSmallInteger':
+					if (isNaN(value) || value % 1 !== 0 || value < -32768 || value > 32767) {
+						throw new Error('Parser');
+					}
+					break;
+				case 'esriFieldTypeInteger':
+					if (isNaN(value) || value % 1 !== 0 || value < -2147483648 || value > 2147483647) {
+						throw new Error('Parser');
+					}
+					break;
+				case 'esriFieldTypeDouble':
+					if (isNaN(value) || value % 1 === 0 || value < -2.2 * Math.pow(10, 308) || value > 1.8 * Math.pow(10, 308)) {
+						throw new Error('Parser');
+					}
+					break;
+				case 'esriFieldTypeDate':
+					value = Date.parse(value);
+					if (isNaN(value)) {
+						throw new Error('Parser');
+					} else {
+						value = new Date(value);
+					}
+					break;
+				case 'esriFieldTypeString':
+					if (typeof value !== 'string') {
+						throw new Error('Parser');
+					} else if (value.length > field.length) {
+						value = value.substr(0, field.length);
+					}
+					break;
+			}
+		}
+		
+		return value;
+	};
+
 	var FeatureService = declare(null, {
 		mocking: false,
 		constructor: function() {
@@ -362,48 +402,11 @@ define([
 								if (field.type === 'esriFieldTypeOID' || field.type === 'esriFieldTypeGeometry') {
 									return;
 								}
-
-								var val = lang.getObject('attributes.' + field.name, false, feature);
-								if (val !== undefined) {
-									switch (field.type) {
-										case 'esriFieldTypeSmallInteger':
-											if (isNaN(val) || val % 1 !== 0 || val < -32768 || val > 32767) {
-												throw new Error('Parser');
-											}
-											break;
-										case 'esriFieldTypeInteger':
-											if (isNaN(val) || val % 1 !== 0 || val < -2147483648 || val > 2147483647) {
-												throw new Error('Parser');
-											}
-											break;
-										case 'esriFieldTypeDouble':
-											if (isNaN(val) || val % 1 === 0 || val < -2.2 * Math.pow(10, 308) || val > 1.8 * Math.pow(10, 308)) {
-												throw new Error('Parser');
-											}
-											break;
-										case 'esriFieldTypeDate':
-											val = Date.parse(val);
-											if (isNaN(val)) {
-												throw new Error('Parser');
-											} else {
-												val = new Date(val);
-											}
-											break;
-										case 'esriFieldTypeString':
-											if (typeof val !== 'string') {
-												throw new Error('Parser');
-											} else if (val.length > field.length) {
-												val = val.substr(0, field.length);
-											}
-											break;
-										default:
-											add.attributes[field.name] = null;
-									}
-
-									add.attributes[field.name] = val;
-								} else {
-									add.attributes[field.name] = null;
+								var value = validateField(field, feature);
+								if (value === undefined) {
+									value = null;
 								}
+								add.attributes[field.name] = value;
 							});
 
 							// Validate geometry
@@ -468,43 +471,9 @@ define([
 								if (field.type === 'esriFieldTypeOID' || field.type === 'esriFieldTypeGeometry') {
 									return;
 								}
-
-								var val = lang.getObject('attributes.' + field.name, false, feature);
-								if (val !== undefined) {
-									switch (field.type) {
-										case 'esriFieldTypeSmallInteger':
-											if (isNaN(val) || val % 1 !== 0 || val < -32768 || val > 32767) {
-												throw new Error('Parser');
-											}
-											break;
-										case 'esriFieldTypeInteger':
-											if (isNaN(val) || val % 1 !== 0 || val < -2147483648 || val > 2147483647) {
-												throw new Error('Parser');
-											}
-											break;
-										case 'esriFieldTypeDouble':
-											if (isNaN(val) || val % 1 === 0 || val < -2.2 * Math.pow(10, 308) || val > 1.8 * Math.pow(10, 308)) {
-												throw new Error('Parser');
-											}
-											break;
-										case 'esriFieldTypeDate':
-											val = Date.parse(val);
-											if (isNaN(val)) {
-												throw new Error('Parser');
-											} else {
-												val = new Date(val);
-											}
-											break;
-										case 'esriFieldTypeString':
-											if (typeof val !== 'string') {
-												throw new Error('Parser');
-											} else if (val.length > field.length) {
-												val = val.substr(0, field.length);
-											}
-											break;
-									}
-
-									update.attributes[field.name] = val;
+								var value = validateField(field, feature);
+								if (value !== undefined) {
+									update.attributes[field.name] = value;
 								}
 							});
 
