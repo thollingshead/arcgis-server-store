@@ -231,6 +231,10 @@ define([
 			var deleteFeatures = registry.register(/Mock\/FeatureServer\/[0-9]+\/deleteFeatures$/, lang.hitch(this, 'deleteFeatures'));
 			this.handles.push(deleteFeatures);
 
+			// Apply Edits
+			var applyEdits = registry.register(/Mock\/FeatureServer\/[0-9]+\/applyEdits$/, lang.hitch(this, 'applyEdits'));
+			this.handles.push(applyEdits);
+
 			// Root Info / Unknown Endpoints
 			var info = registry.register(/Mock\/FeatureServer\/[0-9]+.*$/, lang.hitch(this, 'info'));
 			this.handles.push(info);
@@ -552,6 +556,164 @@ define([
 					error = new Error('Unable to complete operation.');
 					error.code = 500;
 					error.details = ['Unable to perform deleteFeatures operation.'];
+					dfd.reject(error);
+				}
+			} else {
+				error = new Error('Requested operation is not supported by this service.');
+				error.code = 400;
+				error.details = [];
+				dfd.reject(error);
+			}
+
+			return when(dfd.promise);
+		},
+		applyEdits: function(url, query) {
+			var error, dfd = new Deferred();
+			if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Editing') !== -1) {
+				try {
+					query.adds = JSON.parse(query.adds || '[]');
+					query.updates = JSON.parse(query.updates || '[]');
+					query.deletes = (query.deletes || '').split(',');
+
+					// Add
+					if (query.adds.length) {
+						if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Create') !== -1) {
+							query.adds = array.map(query.adds, lang.hitch(this, function(feature) {
+								var add = {
+									attributes: {}
+								};
+
+								// Validate fields
+								try {
+									array.forEach(this.serviceDefinition.fields, function(field) {
+										if (field.type === 'esriFieldTypeOID' || field.type === 'esriFieldTypeGeometry') {
+											return;
+										}
+										var value = validateField(field, feature);
+										if (value === undefined) {
+											value = null;
+										}
+										add.attributes[field.name] = value;
+									});
+								} catch (e) {
+									return;
+								}
+
+								// Validate geometry
+								if (this.serviceDefinition.type === 'Feature Layer' && feature.geometry) {
+									var geometry = geometryJsonUtils.fromJson(feature.geometry);
+
+									if (geometry && geometryJsonUtils.getJsonType(geometry) === this.serviceDefinition.geometryType) {
+											add.geometry = geometry;
+									} else {
+										throw new Error();
+									}
+								}
+
+								return add;
+							}));
+
+							query.adds = array.filter(query.adds, function(feature) {
+								return feature;
+							});
+						} else {
+							throw new Error('Add not supported.');
+						}
+					}
+
+					// Update
+					if (query.updates.length) {
+						if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Update') !== -1) {
+							query.updates = array.map(query.updates, lang.hitch(this, function(feature) {
+								var objectId = lang.getObject('attributes.' + this.serviceDefinition.objectIdField, false, feature);
+								var update = this.store.get(objectId);
+								if (!objectId || !update) {
+									throw new Error('Parser');
+								}
+
+								// Validate fields
+								array.forEach(this.serviceDefinition.fields, function(field) {
+									if (field.type === 'esriFieldTypeOID' || field.type === 'esriFieldTypeGeometry') {
+										return;
+									}
+									var value = validateField(field, feature);
+									if (value !== undefined) {
+										update.attributes[field.name] = value;
+									}
+								});
+
+								// Validate geometry
+								if (this.serviceDefinition.type === 'Feature Layer' && this.serviceDefinition.allowGeometryUpdates && feature.geometry) {
+									var geometry = geometryJsonUtils.fromJson(feature.geometry);
+
+									if (geometry && geometryJsonUtils.getJsonType(geometry) === this.serviceDefinition.geometryType) {
+											update.geometry = geometry;
+									} else {
+										throw new Error();
+									}
+								}
+
+								return update;
+							}));
+						} else {
+							throw new Error('Update not supported.');
+						}
+					}
+
+					// Delete
+					if (query.deletes.length) {
+						if (array.indexOf(this.serviceDefinition.capabilities.split(','), 'Delete') !== -1) {
+							query.deletes = array.map(query.deletes, lang.hitch(this, function(id) {
+								return parseInt(id, 10);
+							}));
+							query.deletes = array.filter(query.deletes, lang.hitch(this, function(id) {
+								return id && this.store.get(id);
+							}));
+						} else {
+							throw new Error('Delete not supported.');
+						}
+					}
+
+					if (query.adds.length + query.updates.length + query.deletes.length) {
+						var addResults = array.map(query.adds, lang.hitch(this, function(feature) {
+							var id = this.store.add(feature);
+							return {
+								objectId: id,
+								success: true
+							};
+						}));
+
+						var updateResults = array.map(query.updates, lang.hitch(this, function(feature) {
+							var id = this.store.put(feature);
+							return {
+								objectId: id,
+								success: true
+							};
+						}));
+
+						var deleteResults = array.map(query.deletes, lang.hitch(this, function(id) {
+							this.store.remove(id);
+							return {
+								objectId: id,
+								success: true
+							};
+						}));
+
+						dfd.resolve({
+							addResults: addResults,
+							updateResults: updateResults,
+							deleteResults: deleteResults
+						});
+					} else {
+						error = new Error('Unable to complete operation.');
+						error.code = 500;
+						error.details = ['No edits (\'adds\', \'updates\', or \'deletes\') were specified.'];
+						dfd.reject(error);
+					}
+				} catch (e) {
+					error = new Error('Unable to complete operation.');
+					error.code = e.message ? 500 : 400;
+					error.details = [];
 					dfd.reject(error);
 				}
 			} else {
