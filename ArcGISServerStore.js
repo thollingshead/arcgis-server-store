@@ -19,6 +19,10 @@ define([
 	var _loadWrapper = function(deferred, callback, context) {
 		return function() {
 			var args = arguments;
+			if (context._transaction) {
+				args[1] = lang.mixin({_transaction: context._transaction}, args[1]);
+				args.length = Math.max(args.length, 2);
+			}
 			return deferred.then(function() {
 				return callback.apply(context, args);
 			});
@@ -310,30 +314,51 @@ define([
 			var id = ('id' in options) ? options.id : this.getIdentity(object);
 			if (typeof id !== 'undefined' && options.overwrite !== false) {
 				var dfd = new Deferred();
-				when(options.overwrite || this.get(id)).then(lang.hitch(this, function(existing) {
+				var promise = when(options.overwrite || this.get(id));
+				var transaction = options._transaction || this._transaction;
+				if (transaction) {
+					transaction._promises.push(promise);
+				}
+				promise.then(lang.hitch(this, function(existing) {
 					if (existing) {
 						if (this.capabilities.Update) {
 							object = this._unflatten(lang.clone(object));
 							lang.setObject('attributes.' + this.idProperty, id, object);
-							esriRequest({
-								url: this.url + '/updateFeatures',
-								content: {
-									f: 'json',
-									features: JSON.stringify([object])
-								},
-								handleAs: 'json',
-								callbackParamName: 'callback'
-							}, {
-								usePost: true
-							}).then(function(response) {
-								if (response.updateResults && response.updateResults.length) {
-									dfd.resolve(response.updateResults[0].success ? response.updateResults[0].objectId : undefined);
-								}
-							}, dfd.reject);
+							if (transaction) {
+								transaction.puts.push({
+									deferred: dfd,
+									feature: object,
+									id: id
+								});
+							} else {
+								esriRequest({
+									url: this.url + '/updateFeatures',
+									content: {
+										f: 'json',
+										features: JSON.stringify([object])
+									},
+									handleAs: 'json',
+									callbackParamName: 'callback'
+								}, {
+									usePost: true
+								}).then(lang.hitch(this, function(response) {
+									if (response.updateResults && response.updateResults.length) {
+										if (this.idProperty === this._serviceInfo.objectIdField) {
+											dfd.resolve(response.updateResults[0].success ? response.updateResults[0].objectId : undefined);
+										} else {
+											dfd.resolve(response.updateResults[0].success ? id : undefined);
+										}
+									}
+								}), dfd.reject);
+							}
 						} else {
 							dfd.reject(new Error('Update not supported.'));
 						}
 					} else {
+						if (transaction && !options._transaction) {
+							options = lang.clone(options);
+							options._transaction = transaction;
+						}
 						when(this.add(object, options)).then(dfd.resolve, dfd.reject);
 					}
 				}));
