@@ -428,7 +428,8 @@ define([
 		 * Deletes an object by its identity
 		 * @param  {Number|String} id The identity to use to delete the object
 		 */
-		remove: function(id) {
+		remove: function(id, options) {
+			options = options || {};
 			if (this.capabilities.Delete) {
 				var where = '';
 				if (typeof id === 'string') {
@@ -437,19 +438,51 @@ define([
 					where = this.idProperty + ' = ' + id;
 				}
 
-				return esriRequest({
-					url: this.url + '/deleteFeatures',
-					content: {
-						f: 'json',
-						where: where
-					},
-					handleAs: 'json',
-					callbackParamName: 'callback'
-				}, {
-					usePost: true
-				}).then(function(response) {
-					return !!(response && response.success);
-				});
+				var dfd = new Deferred();
+				var transaction = options._transaction || this._transaction;
+				if (transaction) {
+					if (this.idProperty === this._serviceInfo.objectIdField) {
+						transaction.removes.push({
+							deferred: dfd,
+							ids: [id]
+						});
+					} else {
+						var promise = esriRequest({
+							url: this.url + '/query',
+							content: {
+								f: 'json',
+								where: where,
+								returnIdsOnly: true
+							},
+							handleAs: 'json',
+							callbackParamaName: 'callback'
+						}).then(lang.hitch(this, function(response) {
+							if (response.objectIds) {
+								transaction.removes.push({
+									deferred: dfd,
+									ids: response.objectIds
+								});
+							}
+						}), dfd.reject);
+						transaction._promises.push(promise);
+					}
+				} else {
+					esriRequest({
+						url: this.url + '/deleteFeatures',
+						content: {
+							f: 'json',
+							where: where
+						},
+						handleAs: 'json',
+						callbackParamName: 'callback'
+					}, {
+						usePost: true
+					}).then(function(response) {
+						dfd.resolve(!!(response && response.success));
+					}, dfd.reject);
+				}
+
+				return dfd.promise;
 			} else {
 				throw new Error('Remove not supported.');
 			}
