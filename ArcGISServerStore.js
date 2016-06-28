@@ -378,35 +378,48 @@ define([
 		add: function(object, options) {
 			options = options || {};
 			if (this.capabilities.Create) {
+				var dfd = new Deferred();
 				var id = ('id' in options) ? options.id : this.getIdentity(object);
 				var clone = this._unflatten(lang.clone(object));
 				lang.setObject('attributes.' + this.idProperty, id, clone);
 
 				if (typeof id != 'undefined' && this.idProperty === this._serviceInfo.objectIdField) {
 					console.warn('Cannot set id on new object.');
+					id = undefined;
 				}
 
-				return esriRequest({
-					url: this.url + '/addFeatures',
-					content: {
-						f: 'json',
-						features: JSON.stringify([clone])
-					},
-					handleAs: 'json',
-					callbackParamName: 'callback'
-				}, {
-					usePost: true
-				}).then(lang.hitch(this, function(response) {
-					if (response.addResults && response.addResults.length) {
-						if (this.idProperty === this._serviceInfo.objectIdField) {
-							var oid = response.addResults[0].success ? response.addResults[0].objectId : undefined;
-							lang.setObject((this.flatten ? '' : 'attributes.') + this.idProperty, oid, object);
-							return oid;
-						} else {
-							return response.addResults[0].success ? id : undefined;
+				var transaction = options._transaction || this._transaction;
+				if (transaction) {
+					transaction.adds.push({
+						deferred: dfd,
+						feature: clone,
+						id: id
+					});
+				} else {
+					esriRequest({
+						url: this.url + '/addFeatures',
+						content: {
+							f: 'json',
+							features: JSON.stringify([clone])
+						},
+						handleAs: 'json',
+						callbackParamName: 'callback'
+					}, {
+						usePost: true
+					}).then(lang.hitch(this, function(response) {
+						if (response.addResults && response.addResults.length) {
+							if (this.idProperty === this._serviceInfo.objectIdField) {
+								var oid = response.addResults[0].success ? response.addResults[0].objectId : undefined;
+								lang.setObject((this.flatten ? '' : 'attributes.') + this.idProperty, oid, object);
+								dfd.resolve(oid);
+							} else {
+								dfd.resolve(response.addResults[0].success ? id : undefined);
+							}
 						}
-					}
-				}));
+					}), dfd.reject);
+				}
+
+				return dfd.promise;
 			} else {
 				throw new Error('Add not supported.');
 			}
