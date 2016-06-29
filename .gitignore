@@ -1,5 +1,5 @@
 /* NPM Modules */
-**/node_modules
+node_modules
 
-/* Test Dependencies */
-**/tests/libs
+/* JSPM Packages */
+jspm_packages
