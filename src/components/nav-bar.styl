@@ -1,0 +1,34 @@
+@require '../assets/styles/bootstrap-defaults'
+@require '../assets/styles/colors'
+
+nav-bar
+	.navbar
+		.container-fluid
+			margin-right $navbar-height
+
+	.nav-pills
+		display flex
+
+		height $navbar-height
+
+		align-items center
+
+	.navbar-default
+		.navbar-brand
+			&:hover
+				color $primary-color
+
+		.nav-pills
+			a
+				color $navbar-default-brand-color
+
+	.navbar-inverse
+		.navbar-brand
+			color $primary-color
+
+			&:hover
+				color $navbar-inverse-brand-color
+
+		.nav-pills
+			a
+				color $primary-color
