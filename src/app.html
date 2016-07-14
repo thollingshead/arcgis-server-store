@@ -2,11 +2,13 @@
 	<require from="bootstrap/css/bootstrap.min.css"></require>
 	<require from="./app.css"></require>
 	<require from="./components/nav-bar.html"></require>
+	<require from="./components/store-settings"></require>
 
 	<nav-bar></nav-bar>
 	<main class="container-fluid">
 		<div class="row">
 			<div class="col-sm-4 col-md-3 sidebar">
+				<store-settings settings.two-way="settings"></store-settings>
 			</div>
 			<div class="col-sm-8 col-sm-offset-4 col-md-9 col-md-offset-3 main"></div>
 		</div>
