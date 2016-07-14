@@ -1,0 +1,10 @@
+<template>
+	<require from="./capabilities-indicator.css"></require>
+
+	<ul>
+		<li repeat.for="[capability, enabled] of supported" class="btn ${enabled ? 'btn-success' : 'btn-danger'}">
+			<label><i class="fa ${enabled ? 'fa-check-circle-o' : 'fa-times-circle-o'}"></i> ${capability}</label>
+			<input type="checkbox" autocomplete="off" class="form-control" checked="${enabled}" disabled>
+		</li>
+	</ul>
+</template>
