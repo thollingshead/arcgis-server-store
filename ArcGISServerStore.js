@@ -4,6 +4,7 @@ define([
 	'dojo/_base/lang',
 
 	'dojo/Deferred',
+	'dojo/promise/all',
 	'dojo/store/util/QueryResults',
 	'dojo/when',
 
@@ -11,13 +12,17 @@ define([
 	'esri/tasks/query'
 ], function(
 	array, declare, lang,
-	Deferred, QueryResults, when,
+	Deferred, all, QueryResults, when,
 	esriRequest, Query
 ) {
 
 	var _loadWrapper = function(deferred, callback, context) {
 		return function() {
 			var args = arguments;
+			if (context._transaction) {
+				args[1] = lang.mixin({_transaction: context._transaction}, args[1]);
+				args.length = Math.max(args.length, 2);
+			}
 			return deferred.then(function() {
 				return callback.apply(context, args);
 			});
@@ -42,6 +47,143 @@ define([
 			});
 
 			return QueryResults(dfd); // jshint ignore:line
+		};
+	};
+
+	var _loadTransactionWrapper = function(deferred, callback, context) {
+		return function() {
+			callback.apply(context, arguments);
+
+			return {
+				commit: cleanup(function() {
+					var transaction = this;
+					return deferred.then(function() {
+						return commit.apply(transaction);
+					});
+				}, context, context._transaction),
+				abort: cleanup(function() {
+					var transaction = this;
+					return deferred.then(function() {
+						return abort.apply(transaction);
+					});
+				}, context, context._transaction)
+			};
+		};
+	};
+
+	var abort = function(message) {
+		var dfd = new Deferred();
+		if (this._aborted) {
+			dfd.cancel('Transaction aborted.');
+		} else if (this._committed) {
+			dfd.reject('Transaction committed.');
+		} else {
+			this._aborted = true;
+			var transactions = [].concat(this._promises, this.puts, this.adds, this.removes);
+			array.forEach(transactions, function(transaction) {
+				if (transaction) {
+					transaction = transaction.deferred || transaction;
+					if (lang.isFunction(transaction.cancel)) {
+						transaction.cancel(message || 'Transaction aborted.');
+					}
+				}
+			});
+			dfd.resolve();
+		}
+		return dfd.promise;
+	};
+
+	var commit = function() {
+		var dfd = new Deferred();
+		if (this._aborted) {
+			dfd.reject('Transaction aborted.');
+		} else if (this._committed) {
+			dfd.cancel('Transaction committed.');
+		} else {
+			this._committed = true;
+			return all(this._promises || []).then(lang.hitch(this, function() {
+				var puts = array.map(this.puts || [], function(put) {
+					return put.feature;
+				});
+				var adds = array.map(this.adds || [], function(add) {
+					return add.feature;
+				});
+				var removes = [];
+				array.forEach(this.removes || [], function(remove) {
+					removes = removes.concat(remove.ids);
+				});
+
+				return esriRequest({
+					url: this._store.url + '/applyEdits',
+					content: {
+						f: 'json',
+						updates: JSON.stringify(puts),
+						adds: JSON.stringify(adds),
+						deletes: removes.join(',')
+					},
+					handleAs: 'json',
+					callbackParamName: 'callback'
+				}, {
+					usePost: true
+				}).then(lang.hitch(this, function(response) {
+					array.forEach(this.puts, lang.hitch(this, function(put, i) {
+						var updateResult = response.updateResults[i];
+						if (updateResult.success) {
+							if (this._store.idProperty === this._store._serviceInfo.objectIdField) {
+								put.deferred.resolve(updateResult.objectId);
+							} else {
+								put.deferred.resolve(put.id);
+							}
+						} else {
+							put.deferred.reject();
+						}
+					}));
+
+					array.forEach(this.adds, lang.hitch(this, function(add, i) {
+						var addResult = response.addResults[i];
+						if (addResult.success) {
+							if (this._store.idProperty === this._store._serviceInfo.objectIdField) {
+								add.deferred.resolve(addResult.objectId);
+							} else {
+								add.deferred.resolve(typeof add.id != 'undefined' ? add.id : null);
+							}
+						} else {
+							add.deferred.reject();
+						}
+					}));
+
+					array.forEach(this.removes, function(remove) {
+						remove.ids = array.filter(remove.ids, function(id) {
+							var success = array.some(response.deleteResults, function(deleteResult) {
+								return deleteResult.objectId === id && deleteResult.success;
+							});
+							return !success;
+						});
+
+						if (!remove.ids.length) {
+							remove.deferred.resolve(true);
+						} else {
+							remove.deferred.reject();
+						}
+					});
+				}), lang.hitch(this, function(error) {
+					this._committed = false;
+					abort.apply(this, arguments);
+				}));
+			}), lang.hitch(this, function() {
+				this._committed = false;
+				abort.apply(this, arguments);
+			}));
+		}
+		return dfd.promise;
+	};
+
+	var cleanup = function(action, store, transaction) {
+		return function() {
+			if (store._transaction === transaction) {
+				delete store._transaction;
+			}
+			return action.apply(transaction);
 		};
 	};
 
@@ -100,6 +242,7 @@ define([
 			var put = this.put;
 			var remove = this.remove;
 			var query = this.query;
+			var transaction = this.transaction;
 
 			loadDfd.then(lang.hitch(this, function() {
 				this.get = get;
@@ -107,6 +250,7 @@ define([
 				this.put = put;
 				this.remove = remove;
 				this.query = query;
+				this.transaction = transaction;
 			}));
 
 			this.get = _loadWrapper(loadDfd, this.get, this);
@@ -114,6 +258,7 @@ define([
 			this.put = _loadWrapper(loadDfd, this.put, this);
 			this.remove = _loadWrapper(loadDfd, this.remove, this);
 			this.query = _loadQueryWrapper(loadDfd, this.query, this);
+			this.transaction = _loadTransactionWrapper(loadDfd, this.transaction, this);
 		},
 		/**
 		 * Retrieves and object by its identity
@@ -169,30 +314,51 @@ define([
 			var id = ('id' in options) ? options.id : this.getIdentity(object);
 			if (typeof id !== 'undefined' && options.overwrite !== false) {
 				var dfd = new Deferred();
-				when(options.overwrite || this.get(id)).then(lang.hitch(this, function(existing) {
+				var promise = when(options.overwrite || this.get(id));
+				var transaction = options._transaction || this._transaction;
+				if (transaction) {
+					transaction._promises.push(promise);
+				}
+				promise.then(lang.hitch(this, function(existing) {
 					if (existing) {
 						if (this.capabilities.Update) {
 							object = this._unflatten(lang.clone(object));
 							lang.setObject('attributes.' + this.idProperty, id, object);
-							esriRequest({
-								url: this.url + '/updateFeatures',
-								content: {
-									f: 'json',
-									features: JSON.stringify([object])
-								},
-								handleAs: 'json',
-								callbackParamName: 'callback'
-							}, {
-								usePost: true
-							}).then(function(response) {
-								if (response.updateResults && response.updateResults.length) {
-									dfd.resolve(response.updateResults[0].success ? response.updateResults[0].objectId : undefined);
-								}
-							}, dfd.reject);
+							if (transaction) {
+								transaction.puts.push({
+									deferred: dfd,
+									feature: object,
+									id: id
+								});
+							} else {
+								esriRequest({
+									url: this.url + '/updateFeatures',
+									content: {
+										f: 'json',
+										features: JSON.stringify([object])
+									},
+									handleAs: 'json',
+									callbackParamName: 'callback'
+								}, {
+									usePost: true
+								}).then(lang.hitch(this, function(response) {
+									if (response.updateResults && response.updateResults.length) {
+										if (this.idProperty === this._serviceInfo.objectIdField) {
+											dfd.resolve(response.updateResults[0].success ? response.updateResults[0].objectId : undefined);
+										} else {
+											dfd.resolve(response.updateResults[0].success ? id : undefined);
+										}
+									}
+								}), dfd.reject);
+							}
 						} else {
 							dfd.reject(new Error('Update not supported.'));
 						}
 					} else {
+						if (transaction && !options._transaction) {
+							options = lang.clone(options);
+							options._transaction = transaction;
+						}
 						when(this.add(object, options)).then(dfd.resolve, dfd.reject);
 					}
 				}));
@@ -212,35 +378,48 @@ define([
 		add: function(object, options) {
 			options = options || {};
 			if (this.capabilities.Create) {
+				var dfd = new Deferred();
 				var id = ('id' in options) ? options.id : this.getIdentity(object);
 				var clone = this._unflatten(lang.clone(object));
 				lang.setObject('attributes.' + this.idProperty, id, clone);
 
 				if (typeof id != 'undefined' && this.idProperty === this._serviceInfo.objectIdField) {
 					console.warn('Cannot set id on new object.');
+					id = undefined;
 				}
 
-				return esriRequest({
-					url: this.url + '/addFeatures',
-					content: {
-						f: 'json',
-						features: JSON.stringify([clone])
-					},
-					handleAs: 'json',
-					callbackParamName: 'callback'
-				}, {
-					usePost: true
-				}).then(lang.hitch(this, function(response) {
-					if (response.addResults && response.addResults.length) {
-						if (this.idProperty === this._serviceInfo.objectIdField) {
-							var oid = response.addResults[0].success ? response.addResults[0].objectId : undefined;
-							lang.setObject((this.flatten ? '' : 'attributes.') + this.idProperty, oid, object);
-							return oid;
-						} else {
-							return response.addResults[0].success ? id : undefined;
+				var transaction = options._transaction || this._transaction;
+				if (transaction) {
+					transaction.adds.push({
+						deferred: dfd,
+						feature: clone,
+						id: id
+					});
+				} else {
+					esriRequest({
+						url: this.url + '/addFeatures',
+						content: {
+							f: 'json',
+							features: JSON.stringify([clone])
+						},
+						handleAs: 'json',
+						callbackParamName: 'callback'
+					}, {
+						usePost: true
+					}).then(lang.hitch(this, function(response) {
+						if (response.addResults && response.addResults.length) {
+							if (this.idProperty === this._serviceInfo.objectIdField) {
+								var oid = response.addResults[0].success ? response.addResults[0].objectId : undefined;
+								lang.setObject((this.flatten ? '' : 'attributes.') + this.idProperty, oid, object);
+								dfd.resolve(oid);
+							} else {
+								dfd.resolve(response.addResults[0].success ? id : undefined);
+							}
 						}
-					}
-				}));
+					}), dfd.reject);
+				}
+
+				return dfd.promise;
 			} else {
 				throw new Error('Add not supported.');
 			}
@@ -249,7 +428,8 @@ define([
 		 * Deletes an object by its identity
 		 * @param  {Number|String} id The identity to use to delete the object
 		 */
-		remove: function(id) {
+		remove: function(id, options) {
+			options = options || {};
 			if (this.capabilities.Delete) {
 				var where = '';
 				if (typeof id === 'string') {
@@ -258,19 +438,51 @@ define([
 					where = this.idProperty + ' = ' + id;
 				}
 
-				return esriRequest({
-					url: this.url + '/deleteFeatures',
-					content: {
-						f: 'json',
-						where: where
-					},
-					handleAs: 'json',
-					callbackParamName: 'callback'
-				}, {
-					usePost: true
-				}).then(function(response) {
-					return !!(response && response.success);
-				});
+				var dfd = new Deferred();
+				var transaction = options._transaction || this._transaction;
+				if (transaction) {
+					if (this.idProperty === this._serviceInfo.objectIdField) {
+						transaction.removes.push({
+							deferred: dfd,
+							ids: [id]
+						});
+					} else {
+						var promise = esriRequest({
+							url: this.url + '/query',
+							content: {
+								f: 'json',
+								where: where,
+								returnIdsOnly: true
+							},
+							handleAs: 'json',
+							callbackParamaName: 'callback'
+						}).then(lang.hitch(this, function(response) {
+							if (response.objectIds) {
+								transaction.removes.push({
+									deferred: dfd,
+									ids: response.objectIds
+								});
+							}
+						}), dfd.reject);
+						transaction._promises.push(promise);
+					}
+				} else {
+					esriRequest({
+						url: this.url + '/deleteFeatures',
+						content: {
+							f: 'json',
+							where: where
+						},
+						handleAs: 'json',
+						callbackParamName: 'callback'
+					}, {
+						usePost: true
+					}).then(function(response) {
+						dfd.resolve(!!(response && response.success));
+					}, dfd.reject);
+				}
+
+				return dfd.promise;
 			} else {
 				throw new Error('Remove not supported.');
 			}
@@ -398,6 +610,26 @@ define([
 
 				return QueryResults(dfd); // jshint ignore:line
 			}
+		},
+		/**
+		 * Starts a new transaction.
+		 * @return {Object}    Store transaction
+		 */
+		transaction: function() {
+			var transaction = {
+				_store: this,
+				_promises: [],
+				puts: [],
+				adds: [],
+				removes: []
+			};
+
+			this._transaction = transaction;
+
+			return {
+				commit: cleanup(commit, this, transaction),
+				abort: cleanup(abort, this, transaction)
+			};
 		},
 		/**
 		 * Flatten attributes to top-level object

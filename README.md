@@ -111,6 +111,12 @@ store.query(q);
 
 // Remove an object
 store.remove(1);
+
+// Batch updates
+var trans = store.transaction();
+store.add({NAME: 'New', CATEGORY: 'Sample Transaction'});
+store.put({OBJECTID: 2, NAME: 'Edited', CATEGORY: 'Transaction'});
+trans.commit();
 ```
 
 Refer to the 

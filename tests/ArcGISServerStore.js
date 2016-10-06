@@ -1236,4 +1236,253 @@ define([
 			}), dfd.reject.bind(dfd));
 		}
 	});
+
+	registerSuite({
+		name: 'transaction',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		beforeEach: function() {
+			MockFeatureService.reset();
+		},
+		'transaction no capability': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			var putObject = {
+				ESRI_OID: 1,
+				NAME: 'Put Object'
+			};
+
+			var addObject = {
+				NAME: 'Add Object'
+			};
+
+			var oid = 1;
+
+			// Test
+			var transaction = store.transaction();
+			var put = when(store.put(putObject));
+			var add = when(store.add(addObject));
+			var remove = when(store.remove(oid));
+			put.then(dfd.reject.bind(dfd), function(putError) {
+				add.then(dfd.reject.bind(dfd), function(addError) {
+					remove.then(dfd.reject.bind(dfd), dfd.callback(function(removeError) {
+						assert.instanceOf(putError, Error, 'Map service does not support Update capability. Should receive an error');
+						assert.strictEqual(putError.message, 'Update not supported.', 'Should receive a custom error message');
+
+						assert.instanceOf(addError, Error, 'Map service does not support Delete capability. Should receive an error');
+						assert.strictEqual(addError.message, 'Add not supported.', 'Should receive a custom error message');
+						
+						assert.instanceOf(removeError, Error, 'Map service does not support Add capability. Should receive an error');
+						assert.strictEqual(removeError.message, 'Remove not supported.', 'Should receive a custom error message');
+					}));
+				});
+			});
+			transaction.commit();
+		},
+		'transaction abort': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService
+			});
+
+			var putObject = {
+				ESRI_OID: 1,
+				NAME: 'Put Object'
+			};
+
+			var addObject = {
+				NAME: 'Add Object'
+			};
+
+			var oid = 1;
+
+			// Test
+			var transaction = store.transaction();
+			var put = when(store.put(putObject));
+			var add = when(store.add(addObject));
+			var remove = when(store.remove(oid));
+			put.then(dfd.reject.bind(dfd), function(putError) {
+				add.then(dfd.reject.bind(dfd), function(addError) {
+					remove.then(dfd.reject.bind(dfd), dfd.callback(function(removeError) {
+						assert.strictEqual(putError, 'Transaction aborted.', 'Should receive a custom error message');
+
+						assert.strictEqual(addError, 'Transaction aborted.', 'Should receive a custom error message');
+						
+						assert.strictEqual(removeError, 'Transaction aborted.', 'Should receive a custom error message');
+					}));
+				});
+			});
+			transaction.abort();
+		},
+		'transaction commit': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService,
+				returnGeometry: false
+			});
+
+			var putObject = {
+				NAME: 'Put Object',
+				ESRI_OID: 5,
+				DETAILS: 'Something new'
+			};
+
+			var addObject = {
+				NAME: 'Add Object',
+				DETAILS: 'Mocking Add',
+				CATEGORY: 4321
+			};
+
+			var oid = 1;
+
+			// Test
+			var transaction = store.transaction();
+			all({
+				put: when(store.put(lang.clone(putObject))),
+				add: when(store.add(lang.clone(addObject))),
+				remove: when(store.remove(oid))
+			}).then(function(results) {
+				addObject.ESRI_OID = results.add;
+				all({
+					put: when(store.get(results.put)),
+					add: when(store.get(results.add)),
+					remove: when(store.get(oid))
+				}).then(dfd.callback(function(getResults) {
+					var updated = getResults.put;
+					assert.isDefined(updated.CATEGORY, 'Put should only overwrite fields.');
+					assert.deepEqual(updated, lang.mixin(lang.clone(updated), putObject), 'Put should update object with values.');
+
+					var added = getResults.add;
+					assert.isObject(added, 'Object should be added to store');
+					assert.strictEqual(results.add, store.getIdentity(added), 'Add should return new id');
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');	
+
+					var removed = getResults.remove;
+					assert.isTrue(results.remove, 'Existing id should remove successfully.');
+					assert.isUndefined(removed, 'Removed id should no longer exist in store.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+			transaction.commit();
+		},
+		'multiple transactions': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: featureService,
+				idProperty: 'NAME',
+				returnGeometry: false
+			});
+
+			var putObject = {
+				NAME: 'Mock Test Point 1',
+				ESRI_OID: 1,
+				DETAILS: 'Something new'
+			};
+
+			var addObject = {
+				NAME: 'custID-1234',
+				DETAILS: 'Mocking Add',
+				CATEGORY: 0
+			};
+
+			var removeId = 'Mock Test Point 2';
+
+			// Test
+			var transaction = store.transaction();
+			all({
+				put: when(store.put(lang.clone(putObject))),
+				add: when(store.add(lang.clone(addObject))),
+				remove: when(store.remove(removeId))
+			}).then(function(results) {
+				addObject[store.idProperty] = results.add;
+				all({
+					put: when(store.get(results.put)),
+					add: when(store.get(results.add)),
+					remove: when(store.get(removeId))
+				}).then(dfd.callback(function(getResults) {
+					var updated = getResults.put;
+					assert.isDefined(updated.CATEGORY, 'Put should only overwrite fields.');
+					assert.deepEqual(updated, lang.mixin(lang.clone(updated), putObject), 'Put should update object with values.');
+
+					var added = getResults.add;
+					delete added.ESRI_OID;
+					assert.isObject(added, 'Object should be added to store');
+					assert.strictEqual(results.add, store.getIdentity(added), 'Add should return new id');
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');	
+
+					var removed = getResults.remove;
+					assert.isTrue(results.remove, 'Existing id should remove successfully.');
+					assert.isUndefined(removed, 'Removed id should no longer exist in store.');
+				}), dfd.reject.bind(dfd));
+			}, dfd.reject.bind(dfd));
+			var otherTransaction = store.transaction();
+			store.add(lang.clone(addObject));
+			store.put({failure: true});
+			otherTransaction.commit();
+			transaction.commit();
+		}
+	});
+
+	registerSuite({
+		name: 'live',
+		setup: function() {
+
+		},
+		teardown: function() {
+
+		},
+		military: function() {
+			var store = new ArcGISServerStore({
+				url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Military/FeatureServer/9'
+			});
+
+			var transaction = store.transaction();
+			store.put({
+				objectid: 1410598,
+				name: 'store transaction'
+			}).then(function(result) {
+				console.log('put 1', result);
+			}, function(err) {
+				console.log('put 1', err);
+			});
+			store.put({
+				objectid: 1407804,
+				ruleid: 2
+			}).then(function(result) {
+				console.log('put 2', result);
+			}, function(err) {
+				console.log('put 2', err);
+			});
+			store.add({
+				ruleid: 4994,
+				name: 'store transaction'
+			}).then(function(result) {
+				console.log('add', result);
+			}, function(err) {
+				console.log('add', err);
+			});
+			store.remove(1407805).then(function(result) {
+				console.log('remove', result);
+			}, function(err) {
+				console.log('remove', err);
+			});
+			transaction.abort();
+		}
+	});
 });
