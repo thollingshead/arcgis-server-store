@@ -1,0 +1,8 @@
+<template bindable="fields, idProperty">
+	<div class="form-group">
+		<label>Choose the ID field</label>
+		<select class="form-control" value.bind="idProperty">
+			<option repeat.for="field of fields" model.bind="field.name" selected="${idProperty === field.name}">${field.alias}</option>
+		</select>
+	</div>
+</template>

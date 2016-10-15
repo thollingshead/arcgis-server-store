@@ -2,9 +2,11 @@
 	<require from="./store-settings.css"></require>
 	<require from="./service-input"></require>
 	<require from="./capabilities-indicator"></require>
+	<require from="./id-selector.html"></require>
 
 	<form>
 		<service-input service.two-way="service" url.two-way="settings.url"></service-input>
 		<capabilities-indicator show.bind="!!service.capabilities" capabilities.bind="service.capabilities.split(',')"></capabilities-indicator>
+		<id-selector show.bind="!!service.fields" fields.bind="service.fields" id-property.two-way="settings.idProperty"></id-selector>
 	</form>
 </template>
