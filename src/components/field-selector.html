@@ -1,0 +1,15 @@
+<template>
+	<require from="bootstrap-switch/dist/css/bootstrap3/bootstrap-switch.min.css"></require>
+	<require from="./field-selector.css"></require>
+
+	<div class="form-group">
+		<label>Select output fields</label>
+		<input type="checkbox" ref="_toggle" data-size="mini" data-on-text="All" data-off-text="None" />
+		<ul>
+			<li repeat.for="field of fields" class="btn ${outFields.includes(field.name) ? 'btn-success' : 'btn-danger' & signal: 'out-fields'}" click.delegate="click($event)">
+				<label for="${field.name}">${field.alias}</label>
+				<input type="checkbox" id="${field.name}" class="form-control hidden" value.bind="field.name" checked.bind="$parent.outFields">
+			</li>
+		</ul>
+	</div>
+</template>

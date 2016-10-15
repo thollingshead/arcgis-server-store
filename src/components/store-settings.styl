@@ -28,3 +28,32 @@ store-settings
 
 		li.btn-danger
 			button-variant($gray-light, $gray, darken($gray, 5%))
+
+	.bootstrap-switch
+		border-color darken($gray, 5%)
+
+		&.bootstrap-switch-on
+			&.bootstrap-switch-focused
+			&:focus
+				border-color darken(darken($gray, 5%), 25%)
+				outline none
+				box-shadow none
+
+		&.bootstrap-switch-off
+			&.bootstrap-switch-focused
+			&:focus
+				border-color darken(darken($gray, 5%), 25%)
+				outline none
+				box-shadow none
+
+		&.bootstrap-switch-indeterminate
+			.bootstrap-switch-label
+				border-radius 3px
+
+		.bootstrap-switch-container
+			.bootstrap-switch-handle-on
+				background-color $primary-color
+
+			.bootstrap-switch-handle-off
+				color $gray-light
+				background-color $gray
