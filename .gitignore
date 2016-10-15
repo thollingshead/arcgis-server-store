@@ -3,3 +3,6 @@ node_modules
 
 /* JSPM Packages */
 jspm_packages
+
+/* Build directories */
+dist

@@ -1,8 +1,8 @@
 <template>
 	<div class="form-group ${state.class}">
-		<label for="url">Enter an ArcGIS service layer URL</label>
-		<input type="url" class="form-control" placeholder="Service Layer URL" blur.trigger="blur()" value.bind="url" />
-		<i class="form-control-feedback fa ${state.icon ? state.icon : 'hidden'}"></i>
-		<span class="${state.aria ? 'sr-only' : 'hidden'}">${state.aria}</span>
+		<label>Enter an ArcGIS service layer URL</label>
+		<input type="url" class="form-control" placeholder="Service Layer URL" value.bind="url" blur.trigger="blur()" />
+		<i if.bind="state.icon" class="form-control-feedback fa ${state.icon}"></i>
+		<span if.bind="state.aria" class="sr-only">${state.aria}</span>
 	</div>
 </template>

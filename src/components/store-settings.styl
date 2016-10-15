@@ -1,4 +1,30 @@
+@require '../assets/styles/button-variant'
 @require '../assets/styles/colors'
 
 store-settings
 	color $primary-color
+
+	ul
+		padding 0
+
+		list-style-type none
+
+		li.btn
+			margin 5px
+			padding 0 5px
+
+			label
+				margin-bottom 0
+
+			input[type=checkbox]
+				position absolute
+
+				clip rect(0, 0, 0, 0)
+
+				pointer-events none
+
+		li.btn-success
+			button-variant($white, $primary-color, darken($primary-color, 5%))
+
+		li.btn-danger
+			button-variant($gray-light, $gray, darken($gray, 5%))

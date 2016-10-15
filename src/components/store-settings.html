@@ -3,10 +3,8 @@
 	<require from="./service-input"></require>
 	<require from="./capabilities-indicator"></require>
 
-	<section>
-		<form>
-			<service-input url.two-way="settings.url" service.two-way="service"></service-input>
-			<capabilities-indicator class="${service.capabilities ? '': 'invisible'}" capabilities.bind="service.capabilities.split(',')"></capabilities-indicator>
-		</form>
-	</section>
+	<form>
+		<service-input service.two-way="service" url.two-way="settings.url"></service-input>
+		<capabilities-indicator show.bind="!!service.capabilities" capabilities.bind="service.capabilities.split(',')"></capabilities-indicator>
+	</form>
 </template>

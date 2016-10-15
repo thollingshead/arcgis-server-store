@@ -1,5 +1,6 @@
-import {bindable, inject} from 'aurelia-framework';
+import {inject} from 'aurelia-dependency-injection';
 import {HttpClient} from 'aurelia-fetch-client';
+import {bindable} from 'aurelia-templating';
 
 const STATE = {
 	NONE: {
@@ -10,12 +11,12 @@ const STATE = {
 	LOADING: {
 		class: 'has-feedback',
 		icon: 'fa-circle-o-notch fa-spin',
-		area: '(loading...)'
+		aria: '(loading...)'
 	},
 	ERROR: {
 		class: 'has-error has-feedback',
 		icon: 'fa-close',
-		area: '(error)'
+		aria: '(error)'
 	},
 	WARNING: {
 		class: 'has-warning has-feedback',
@@ -35,7 +36,7 @@ export class ServiceInput {
 	@bindable service = {};
 
 	constructor(http) {
-		this.http = http;
+		this._http = http;
 		this.state = STATE.NONE;
 	}
 
@@ -45,7 +46,10 @@ export class ServiceInput {
 
 	blur() {
 		if (this.url.length > 0) {
-			this.fetchInfo();
+			if (this.url !== this._fetchedUrl) {
+				this.fetchInfo();
+				this._fetchedUrl = this.url;
+			}
 		} else {
 			this.state = STATE.NONE;
 		}
@@ -54,7 +58,7 @@ export class ServiceInput {
 	fetchInfo() {
 		this.state = STATE.LOADING;
 
-		this.http.fetch(`${this.url}?f=json`)
+		this._http.fetch(`${this.url}?f=json`)
 			.then(response => response.json())
 			.then(info => {
 				if (!info.fields || !info.capabilities) {

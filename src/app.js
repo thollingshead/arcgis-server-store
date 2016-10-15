@@ -3,8 +3,8 @@ export class App {
 		this.settings = {
 			url: '',
 			flatten: true,
-			idProperty: 'OBJECTID',
-			outFields: ['*'],
+			idProperty: '',
+			outFields: [],
 			returnGeometry: false
 		};
 	}
