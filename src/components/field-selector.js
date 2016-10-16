@@ -13,6 +13,16 @@ export class FieldSelector {
 	}
 
 	attached() {
+		// Bootstrap-Switch workaround (call switchChange when dragging from indeterminate)
+		const fireSwitchChange = () => {
+			if (this.outFields.length && this.outFields.length < this.fields.length) {
+				$(this._toggle).trigger('switchChange.bootstrapSwitch', this._toggle.checked);
+			}
+		};
+		$(this._toggle).on({
+			'change.bootstrapSwitch': fireSwitchChange
+		});
+
 		// Create toggle switch
 		$(this._toggle).bootstrapSwitch({
 			onSwitchChange: (evt, state) => {
