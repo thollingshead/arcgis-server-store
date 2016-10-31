@@ -13,7 +13,7 @@
 		"url": "git://github.com/thollingshead/arcgis-server-store.git"
 	},
 	"license": "MIT",
-	"main": "ArcGISServerStore.js",
+	"main": "ArcGISServerStore.min.js",
 	"ignore": [
 		".jshintrc"
 	],
