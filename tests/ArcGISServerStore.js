@@ -1282,7 +1282,7 @@ define([
 
 						assert.instanceOf(addError, Error, 'Map service does not support Delete capability. Should receive an error');
 						assert.strictEqual(addError.message, 'Add not supported.', 'Should receive a custom error message');
-						
+
 						assert.instanceOf(removeError, Error, 'Map service does not support Add capability. Should receive an error');
 						assert.strictEqual(removeError.message, 'Remove not supported.', 'Should receive a custom error message');
 					}));
@@ -1320,7 +1320,7 @@ define([
 						assert.strictEqual(putError, 'Transaction aborted.', 'Should receive a custom error message');
 
 						assert.strictEqual(addError, 'Transaction aborted.', 'Should receive a custom error message');
-						
+
 						assert.strictEqual(removeError, 'Transaction aborted.', 'Should receive a custom error message');
 					}));
 				});
@@ -1342,6 +1342,12 @@ define([
 				DETAILS: 'Something new'
 			};
 
+			var nextPutObject = {
+				NAME: 'Put Object 2',
+				ESRI_OID: 6,
+				DETAILS: 'A second object, to check ordering'
+			};
+
 			var addObject = {
 				NAME: 'Add Object',
 				DETAILS: 'Mocking Add',
@@ -1352,32 +1358,62 @@ define([
 
 			// Test
 			var transaction = store.transaction();
-			all({
+			var operationDfd = all({
 				put: when(store.put(lang.clone(putObject))),
 				add: when(store.add(lang.clone(addObject))),
-				remove: when(store.remove(oid))
+				remove: when(store.remove(oid)),
+				next: when(store.put(lang.clone(nextPutObject)))
 			}).then(function(results) {
 				addObject.ESRI_OID = results.add;
-				all({
+				return all({
 					put: when(store.get(results.put)),
 					add: when(store.get(results.add)),
-					remove: when(store.get(oid))
-				}).then(dfd.callback(function(getResults) {
-					var updated = getResults.put;
-					assert.isDefined(updated.CATEGORY, 'Put should only overwrite fields.');
-					assert.deepEqual(updated, lang.mixin(lang.clone(updated), putObject), 'Put should update object with values.');
-
-					var added = getResults.add;
-					assert.isObject(added, 'Object should be added to store');
-					assert.strictEqual(results.add, store.getIdentity(added), 'Add should return new id');
-					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');	
-
-					var removed = getResults.remove;
-					assert.isTrue(results.remove, 'Existing id should remove successfully.');
-					assert.isUndefined(removed, 'Removed id should no longer exist in store.');
-				}), dfd.reject.bind(dfd));
+					remove: when(store.get(oid)),
+					next: when(store.get(results.next))
+				}).then(function(getResults) {
+					return {
+						results: results,
+						getResults: getResults
+					};
+				}, dfd.reject.bind(dfd));
 			}, dfd.reject.bind(dfd));
-			transaction.commit();
+			var transactionDfd = transaction.commit();
+
+			all([operationDfd, transactionDfd]).then(dfd.callback(function(resultsList) {
+				// Ensure that the inividual operations are successful and return correct results
+				var results = resultsList[0].results;
+				var getResults = resultsList[0].getResults;
+				var transactionResults = resultsList[1];
+
+				var updated = getResults.put;
+				assert.isDefined(updated.CATEGORY, 'Put should only overwrite fields.');
+				assert.deepEqual(updated, lang.mixin(lang.clone(updated), putObject), 'Put should update object with values.');
+
+				var added = getResults.add;
+				assert.isObject(added, 'Object should be added to store');
+				assert.strictEqual(results.add, store.getIdentity(added), 'Add should return new id');
+				assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');
+
+				var removed = getResults.remove;
+				assert.isTrue(results.remove, 'Existing id should remove successfully.');
+				assert.isUndefined(removed, 'Removed id should no longer exist in store.');
+
+				var next = getResults.next;
+				assert.isDefined(next.CATEGORY, 'Put should only overwrite fields.');
+				assert.deepEqual(next, lang.mixin(lang.clone(next), nextPutObject), 'Put should update object with values.');
+
+				// Ensure that transaction commit results are correct
+				assert.isObject(transactionResults, 'Commit should return an object with results.');
+				assert.isDefined(transactionResults.put, 'Commit should return puts with results');
+				assert.equal(transactionResults.put[0], store.getIdentity(updated), 'Commit should return put ids');
+				assert.equal(transactionResults.put[1], store.getIdentity(nextPutObject), 'Commit should return put ids in order');
+
+				assert.isDefined(transactionResults.add, 'Commit should return adds with results');
+				assert.equal(transactionResults.add[0], store.getIdentity(added), 'Commit should return add ids');
+
+				assert.isDefined(transactionResults.remove, 'Commit should return removes with results');
+				assert.equal(transactionResults.remove[0], oid, 'Commit should return remove ids');
+			}), dfd.reject.bind(dfd));
 		},
 		'multiple transactions': function() {
 			// Setup
@@ -1424,7 +1460,7 @@ define([
 					delete added.ESRI_OID;
 					assert.isObject(added, 'Object should be added to store');
 					assert.strictEqual(results.add, store.getIdentity(added), 'Add should return new id');
-					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');	
+					assert.deepEqual(added, addObject, 'Object should be added to store without modifying properties');
 
 					var removed = getResults.remove;
 					assert.isTrue(results.remove, 'Existing id should remove successfully.');
@@ -1436,53 +1472,6 @@ define([
 			store.put({failure: true});
 			otherTransaction.commit();
 			transaction.commit();
-		}
-	});
-
-	registerSuite({
-		name: 'live',
-		setup: function() {
-
-		},
-		teardown: function() {
-
-		},
-		military: function() {
-			var store = new ArcGISServerStore({
-				url: 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/Military/FeatureServer/9'
-			});
-
-			var transaction = store.transaction();
-			store.put({
-				objectid: 1410598,
-				name: 'store transaction'
-			}).then(function(result) {
-				console.log('put 1', result);
-			}, function(err) {
-				console.log('put 1', err);
-			});
-			store.put({
-				objectid: 1407804,
-				ruleid: 2
-			}).then(function(result) {
-				console.log('put 2', result);
-			}, function(err) {
-				console.log('put 2', err);
-			});
-			store.add({
-				ruleid: 4994,
-				name: 'store transaction'
-			}).then(function(result) {
-				console.log('add', result);
-			}, function(err) {
-				console.log('add', err);
-			});
-			store.remove(1407805).then(function(result) {
-				console.log('remove', result);
-			}, function(err) {
-				console.log('remove', err);
-			});
-			transaction.abort();
 		}
 	});
 });
