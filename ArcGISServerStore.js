@@ -113,6 +113,13 @@ define([
 	};
 
 	/**
+	 * Sorts transaction operations by index
+	 */
+	var sortOperations = function(a, b) {
+		return a.index - b.index;
+	};
+
+	/**
 	 * Aborts the transaction
 	 * @param  {String} message Custom abort message
 	 * @return {Promise}
@@ -167,14 +174,14 @@ define([
 			// Wait for all transaction promises
 			return all(this._promises || []).then(lang.hitch(this, function() {
 				// Gather features and ids for commit
-				var puts = array.map(this.puts || [], function(put) {
+				var puts = array.map(this.puts.sort(sortOperations) || [], function(put) {
 					return put.feature;
 				});
-				var adds = array.map(this.adds || [], function(add) {
+				var adds = array.map(this.adds.sort(sortOperations) || [], function(add) {
 					return add.feature;
 				});
 				var removes = [];
-				array.forEach(this.removes || [], function(remove) {
+				array.forEach(this.removes.sort(sortOperations) || [], function(remove) {
 					removes = removes.concat(remove.ids);
 				});
 
@@ -192,36 +199,44 @@ define([
 				}, {
 					usePost: true
 				}).then(lang.hitch(this, function(response) {
+					var result = {};
+
 					// Resolve/reject put deferreds with store id
-					array.forEach(this.puts, lang.hitch(this, function(put, i) {
+					result.put = array.map(this.puts, lang.hitch(this, function(put, i) {
+						var id;
 						var updateResult = response.updateResults[i];
 						if (updateResult.success) {
 							if (this._store.idProperty === this._store._serviceInfo.objectIdField) {
-								put.deferred.resolve(updateResult.objectId);
+								id = updateResult.objectId;
 							} else {
-								put.deferred.resolve(put.id);
+								id = put.id;
 							}
+							put.deferred.resolve(id);
 						} else {
 							put.deferred.reject();
 						}
+						return id;
 					}));
 
 					// Resolve/reject add deferreds with store id or null
-					array.forEach(this.adds, lang.hitch(this, function(add, i) {
+					result.add = array.map(this.adds, lang.hitch(this, function(add, i) {
+						var id;
 						var addResult = response.addResults[i];
 						if (addResult.success) {
 							if (this._store.idProperty === this._store._serviceInfo.objectIdField) {
-								add.deferred.resolve(addResult.objectId);
+								id = addResult.objectId;
 							} else {
-								add.deferred.resolve(typeof add.id != 'undefined' ? add.id : null);
+								id = typeof add.id != 'undefined' ? add.id : null;
 							}
+							add.deferred.resolve(id);
 						} else {
 							add.deferred.reject();
 						}
+						return id;
 					}));
 
 					// Resolve/reject remove deferreds with boolean
-					array.forEach(this.removes, function(remove) {
+					result.remove = array.map(this.removes, function(remove) {
 						// Filter successfuly removed ids from list
 						remove.ids = array.filter(remove.ids, function(id) {
 							var success = array.some(response.deleteResults, function(deleteResult) {
@@ -233,11 +248,15 @@ define([
 						if (!remove.ids.length) {
 							// Resolve if no unsuccessful removes
 							remove.deferred.resolve(true);
+							return remove.id;
 						} else {
 							// Reject if there were unsuccessful removes
 							remove.deferred.reject();
+							return undefined;
 						}
 					});
+
+					return result;
 				}), lang.hitch(this, function(error) {
 					// Commit failed. Abort transaction
 					this._committed = false;
@@ -412,6 +431,7 @@ define([
 				// If in 'transaction mode', add check to transaction object
 				var transaction = options._transaction || this._transaction;
 				if (transaction) {
+					var transactionIndex = transaction._index++;
 					transaction._promises.push(promise);
 				}
 
@@ -429,9 +449,10 @@ define([
 							if (transaction) {
 								// If in 'transaction mode', add operation to transaction object
 								transaction.puts.push({
+									index: transactionIndex,
+									id: id,
 									deferred: dfd,
-									feature: object,
-									id: id
+									feature: object
 								});
 							} else {
 								// Make /updateFeatures request with update feature
@@ -506,9 +527,10 @@ define([
 				if (transaction) {
 					// If in 'transaction mode', add operation to transaction object
 					transaction.adds.push({
+						index: transaction._index++,
+						id: id,
 						deferred: dfd,
-						feature: clone,
-						id: id
+						feature: clone
 					});
 				} else {
 					// Make /addFeatures request with add feature
@@ -562,9 +584,12 @@ define([
 
 				var transaction = options._transaction || this._transaction;
 				if (transaction) {
+					var transactionIndex = transaction._index++;
 					// If in 'transaction mode', add operation to transaction object
 					if (this.idProperty === this._serviceInfo.objectIdField) {
 						transaction.removes.push({
+							index: transactionIndex,
+							id: id,
 							deferred: dfd,
 							ids: [id]
 						});
@@ -583,6 +608,8 @@ define([
 							// Add operation using service objectids to transaction object
 							if (response.objectIds) {
 								transaction.removes.push({
+									index: transactionIndex,
+									id: id,
 									deferred: dfd,
 									ids: response.objectIds
 								});
@@ -757,6 +784,7 @@ define([
 		 */
 		transaction: function() {
 			var transaction = {
+				_index: 0,
 				_store: this,
 				_promises: [],
 				puts: [],
