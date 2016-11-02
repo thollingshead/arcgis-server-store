@@ -2,25 +2,26 @@
 @require '../assets/styles/colors'
 
 nav-bar
+	user-select none
+
 	.navbar
 		.container-fluid
-			margin-right $navbar-height
+			.navbar-toggle
+				margin-right $navbar-height
 
 	.nav-pills
-		display flex
-
-		height $navbar-height
-
-		align-items center
+		> li
+			float none
 
 	.navbar-default
 		.navbar-brand
 			&:hover
 				color $primary-color
 
-		.nav-pills
-			a
-				color $navbar-default-brand-color
+		.navbar-nav
+			> li
+				> a
+					color $navbar-default-brand-color
 
 	.navbar-inverse
 		.navbar-brand
@@ -29,6 +30,13 @@ nav-bar
 			&:hover
 				color $navbar-inverse-brand-color
 
-		.nav-pills
-			a
-				color $primary-color
+		.navbar-nav
+			> li
+				> a
+					color $primary-color
+
+@media (min-width: $screen-sm)
+	nav-bar
+		.navbar
+			.container-fluid
+				margin-right $navbar-height
