@@ -4,13 +4,15 @@
 	<require from="./components/nav-bar.html"></require>
 	<require from="./components/store-settings"></require>
 
-	<nav-bar></nav-bar>
+	<nav-bar router.bind="router"></nav-bar>
 	<main class="container-fluid">
 		<div class="row">
 			<section class="col-sm-4 col-md-3 sidebar">
-				<store-settings settings.two-way="settings"></store-settings>
+				<store-settings service.two-way="service" settings.two-way="settings"></store-settings>
 			</section>
-			<section class="col-sm-8 col-sm-offset-4 col-md-9 col-md-offset-3 main"></section>
+			<section class="col-sm-8 col-sm-offset-4 col-md-9 col-md-offset-3 main">
+				<router-view></router-view>
+			</section>
 		</div>
 	</main>
 </template>

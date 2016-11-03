@@ -1,3 +1,5 @@
+import config from '../config';
+import {Redirect} from 'aurelia-router';
 import {bindable} from 'aurelia-templating';
 
 export class StoreSettings {
@@ -9,6 +11,18 @@ export class StoreSettings {
 		outFields: [],
 		returnGeometry: false
 	};
+
+	canActivate() {
+		// Don't show as router-view if sidebar is not hidden
+		return window.innerWidth < config.SCREEN_SMALL_BREAKPOINT_PX || new Redirect('');
+	}
+
+	activate(params, routeConfig, navigationInstruction) {
+		if (navigationInstruction.config.settings) {
+			this.settings = navigationInstruction.config.settings.settings;
+			this.service = navigationInstruction.config.settings.service;
+		}
+	}
 
 	serviceChanged() {
 		if (this.service.objectIdField) {

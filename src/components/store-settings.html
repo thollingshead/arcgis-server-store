@@ -6,11 +6,13 @@
 	<require from="./store-settings/field-selector"></require>
 	<require from="./store-settings/geometry-toggle"></require>
 
-	<form>
-		<service-input service.two-way="service" url.two-way="settings.url"></service-input>
-		<capabilities-indicator show.bind="!!service.capabilities" capabilities.bind="service.capabilities.split(',')"></capabilities-indicator>
-		<id-selector show.bind="!!service.fields" fields.bind="service.fields" id-property.two-way="settings.idProperty"></id-selector>
-		<field-selector show.bind="!!service.fields" fields.bind="service.fields" out-fields.two-way="settings.outFields"></field-selector>
-		<geometry-toggle if.bind="service.geometryType" return-geometry.two-way="settings.returnGeometry"></geometry-toggle>
-	</form>
+	<div class="store-settings">
+		<form>
+			<service-input service.two-way="service" url.two-way="settings.url"></service-input>
+			<capabilities-indicator show.bind="!!service.capabilities & signal: 'service'" capabilities.bind="service.capabilities.split(',') & signal: 'service'"></capabilities-indicator>
+			<id-selector show.bind="!!service.fields & signal: 'service'" fields.bind="service.fields & signal: 'service'" id-property.two-way="settings.idProperty"></id-selector>
+			<field-selector show.bind="!!service.fields & signal: 'service'" fields.bind="service.fields & signal: 'service'" out-fields.two-way="settings.outFields"></field-selector>
+			<geometry-toggle if.bind="!!service.geometryType & signal: 'service'" return-geometry.two-way="settings.returnGeometry"></geometry-toggle>
+		</form>
+	</div>
 </template>

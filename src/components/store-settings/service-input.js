@@ -1,6 +1,7 @@
 import {inject} from 'aurelia-dependency-injection';
 import {HttpClient} from 'aurelia-fetch-client';
 import {bindable} from 'aurelia-templating';
+import {BindingSignaler} from 'aurelia-templating-resources';
 
 const STATE = {
 	NONE: {
@@ -30,13 +31,14 @@ const STATE = {
 	}
 };
 
-@inject(HttpClient)
+@inject(HttpClient, BindingSignaler)
 export class ServiceInput {
 	@bindable url = '';
 	@bindable service = {};
 
-	constructor(http) {
+	constructor(http, signaler) {
 		this._http = http;
+		this._signaler = signaler;
 		this.state = STATE.NONE;
 	}
 
@@ -65,11 +67,18 @@ export class ServiceInput {
 					throw new Error('Invalid layer info');
 				}
 				this.state = STATE.SUCCESS;
-				this.service = info;
+				for (let prop in this.service) {
+					delete this.service[prop];
+				}
+				Object.assign(this.service, info);
+				this._signaler.signal('service');
 			})
 			.catch((error) => {
 				this.state = STATE.ERROR;
-				this.service = {};
+				for (let prop in this.service) {
+					delete this.service[prop];
+				}
+				this._signaler.signal('service');
 			});
 	}
 }

@@ -1,4 +1,4 @@
-<template>
+<template bindable="router">
 	<require from="./nav-bar.css"></require>
 	<require from="./nav-bar/github-corner.html"></require>
 
@@ -11,6 +11,9 @@
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</button>
+				<a repeat.for="row of router.navigation" show.bind="!row.isActive" class="navbar-toggle" title="${row.title}" href.bind="row.href">
+					<i class="fa ${row.settings.icon}"></i>
+				</a>
 				<a class="navbar-brand" href="https://github.com/thollingshead/arcgis-server-store">ArcGIS Server Store</a>
 				<github-corner href="https://github.com/thollingshead"></github-corner>
 			</div>
