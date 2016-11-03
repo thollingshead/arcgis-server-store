@@ -1,7 +1,14 @@
 <template>
+	<require from="./service-input.css"></require>
+
 	<div class="form-group ${state.class}">
 		<label>Enter an ArcGIS service layer URL</label>
-		<input type="url" class="form-control" placeholder="Service Layer URL" value.bind="url" blur.trigger="blur()" />
+		<div class="input-group">
+			<input type="url" class="form-control" placeholder="Service Layer URL" value.bind="url" blur.trigger="go($event)" />
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" click.delegate="go($event)">Go</button>
+			</span>
+		</div>
 		<i if.bind="state.icon" class="form-control-feedback fa ${state.icon}"></i>
 		<span if.bind="state.aria" class="sr-only">${state.aria}</span>
 	</div>

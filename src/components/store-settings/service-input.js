@@ -46,9 +46,9 @@ export class ServiceInput {
 		this.state = STATE.NONE;
 	}
 
-	blur() {
+	go(evt) {
 		if (this.url.length > 0) {
-			if (this.url !== this._fetchedUrl) {
+			if (evt.type !== 'blur' || this.url !== this._fetchedUrl) {
 				this.fetchInfo();
 				this._fetchedUrl = this.url;
 			}
