@@ -1,5 +1,3 @@
-import config from '../config';
-import {Redirect} from 'aurelia-router';
 import {bindable} from 'aurelia-templating';
 
 export class StoreDemo {
@@ -29,6 +27,10 @@ export class StoreDemo {
 		if (navigationInstruction.params.childRoute) {
 			[this.type, this.mode] = navigationInstruction.params.childRoute.split('/');
 		}
+	}
+
+	attached() {
+		this._attached = true;
 	}
 
 	modeChanged() {

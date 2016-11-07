@@ -2,6 +2,59 @@
 
 store-demo
 .store-demo
+	.instructions
+		position absolute
+		z-index 3
+		top 0
+		left -15px
+
+		display block
+		visibility hidden
+		overflow hidden
+
+		width calc(100% + 15px)
+		height 100%
+		padding 20px 15px 20px 30px
+
+		transition opacity 500ms ease
+		text-align center
+
+		opacity 0
+		background rgba($gray-lighter, .95)
+
+		div
+			font-size 40px
+
+			position absolute
+			top 50%
+			left 15px
+
+			width calc(100% - 15px)
+
+			transform translateY(-50%)
+
+			span
+				display block
+
+				margin 25px 0
+
+				transition all 400ms cubic-bezier(.17, .67, .38, 1.46)
+				transform scale(.3)
+
+
+			for n in 2..2
+				span:nth-child({n})
+					transition-delay .1s * (n - 1)
+
+		&.show
+			visibility visible
+
+			opacity 1
+
+			div
+				span
+					transform scale(1)
+
 	.demo
 		.form-inline
 			margin-bottom 10px

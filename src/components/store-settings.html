@@ -14,5 +14,9 @@
 			<field-selector show.bind="!!service.fields & signal: 'service'" fields.bind="service.fields & signal: 'service'" out-fields.two-way="settings.outFields"></field-selector>
 			<geometry-toggle if.bind="!!service.geometryType & signal: 'service'" return-geometry.two-way="settings.returnGeometry"></geometry-toggle>
 		</form>
+
+		<span if.bind="!!settings.idProperty & signal: 'service'" class="visible-xs-block">
+			All done? Use the demo button (<i class="fa fa-laptop"></i>) to see the store in action.
+		</span>
 	</div>
 </template>
