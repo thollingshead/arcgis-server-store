@@ -1,0 +1,23 @@
+<template>
+	<require from="./store-demo.css"></require>
+
+	<div class="store-demo">
+		<div class="demo">
+			<div class="form-inline">
+				<div class="btn-group" data-toggle="buttons">
+					<label repeat.for="mode of _modes" class="btn btn-default ${mode.route === $parent.mode ? 'active' : ''}" click.trigger="click($event)">
+						<input type="radio" name="modes" model.bind="mode.route" checked.bind="$parent.mode"  />
+						<i class="fa ${mode.icon}"></i> ${mode.name}
+					</label>
+				</div>
+
+				<select class="form-control" value.bind="type">
+					<option repeat.for="type of _types" model.bind="type.route" selected="${type === type.route}">${type.name}</option>
+				</select>
+			</div>
+			<div class="content">
+				<router-view></router-view>
+			</div>
+		</div>
+	</div>
+</template>

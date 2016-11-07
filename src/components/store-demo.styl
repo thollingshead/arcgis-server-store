@@ -1,0 +1,37 @@
+@require '../assets/styles/colors'
+
+store-demo
+.store-demo
+	.demo
+		.form-inline
+			margin-bottom 10px
+
+			> *
+				margin 0 25px
+
+				&:first-child
+					margin-left 0
+
+				&:last-child
+					margin-right 0
+
+			.form-control
+				display inline-block
+
+				width auto
+
+				vertical-align middle
+
+			.btn-default
+				&:active
+				&.active
+					color $white
+					border-color darken(darken($primary-color, 5%), 12%)
+					background-color darken($primary-color, 10%)
+
+					&:focus
+					&.focus
+					&:hover
+						color $white
+						border-color darken(darken($primary-color, 5%), 25%)
+						background-color darken($primary-color, 17%)

@@ -1,11 +1,4 @@
 import config from './config';
-import {InlineViewStrategy} from 'aurelia-templating';
-
-System.set('blank', System.newModule({
-	Blank: function Blank() {
-		this.getViewStrategy = () => new InlineViewStrategy('<template><span></span></template>');
-	}
-}));
 
 export class App {
 	constructor() {
@@ -30,17 +23,15 @@ export class App {
 		configuration.title = 'ArcGIS Server Store';
 
 		configuration.map([
-			{ route: 'settings', moduleId: 'components/store-settings', title: 'Settings', nav: true, settings: { icon: 'fa-gears', settings: this.settings, service: this.service }}
+			{ route: 'settings', moduleId: 'components/store-settings', title: 'Settings', nav: true, settings: { icon: 'fa-gears', settings: this.settings, service: this.service }},
+			{ route: 'demos', moduleId: 'components/store-demo', title: 'Demos', nav: true, settings: { icon: 'fa-laptop', settings: this.settings, service: this.service }}
 		]);
 
 		configuration.mapUnknownRoutes((instruction) => {
-			if (instruction.fragment === '/') {
-				if (window.innerWidth < config.SCREEN_SMALL_BREAKPOINT_PX) {
-					return { redirect: 'settings' };
-				}
-				return { moduleId: 'blank' };
+			if (window.innerWidth < config.SCREEN_SMALL_BREAKPOINT_PX) {
+				return { redirect: 'settings' };
 			}
-			return { redirect: '' };
+			return { redirect: 'demos' };
 		});
 
 		this.router = router;
