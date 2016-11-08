@@ -15,6 +15,7 @@ System.config({
 	},
 	map: {
 		'aurelia-animator-css': 'npm:aurelia-animator-css@1.0.0-rc.1.0.0',
+		'aurelia-binding': 'npm:aurelia-binding@1.0.0-rc.1.0.2',
 		'aurelia-bootstrapper': 'npm:aurelia-bootstrapper@1.0.0-rc.1.0.0',
 		'aurelia-fetch-client': 'npm:aurelia-fetch-client@1.0.0-rc.1.0.0',
 		'aurelia-framework': 'npm:aurelia-framework@1.0.0-rc.1.0.0',
@@ -24,10 +25,10 @@ System.config({
 		'aurelia-pal-browser': 'npm:aurelia-pal-browser@1.0.0-rc.1.0.0',
 		'aurelia-polyfills': 'npm:aurelia-polyfills@1.0.0-rc.1.0.0',
 		'aurelia-router': 'npm:aurelia-router@1.0.0-rc.1.0.0',
+		'aurelia-templating': 'npm:aurelia-templating@1.0.0-rc.1.0.0',
 		'aurelia-templating-binding': 'npm:aurelia-templating-binding@1.0.0-rc.1.0.0',
 		'aurelia-templating-resources': 'npm:aurelia-templating-resources@1.0.0-rc.1.0.0',
 		'aurelia-templating-router': 'npm:aurelia-templating-router@1.0.0-rc.1.0.0',
-		'aurelia-templating': 'npm:aurelia-templating@1.0.0-rc.1.0.0',
 		'bootstrap': 'github:twbs/bootstrap@3.3.6',
 		'bootstrap-switch': 'github:nostalgiaz/bootstrap-switch@3.3.2',
 		'fetch': 'github:github/fetch@1.0.0',
@@ -183,6 +184,9 @@ System.config({
 			'ieee754': 'npm:ieee754@1.1.6',
 			'isarray': 'npm:isarray@1.0.0',
 			'process': 'github:jspm/nodelibs-process@0.1.2'
+		},
+		'npm:font-awesome@4.6.3': {
+			'css': 'github:systemjs/plugin-css@0.1.32'
 		},
 		'npm:inherits@2.0.1': {
 			'util': 'github:jspm/nodelibs-util@0.1.0'

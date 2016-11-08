@@ -19,6 +19,11 @@ module.exports = {
 	// path.
 	normalize: [
 		[
+			// include bootstrap's css and font files
+			'font-awesome', [
+				'/css/font-awesome.min.css',
+				'/fonts/*'
+			],
 			// include bootstrap's font files
 			'bootstrap', [
 				'/fonts/*'

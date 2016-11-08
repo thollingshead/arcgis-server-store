@@ -28,9 +28,12 @@ module.exports = {
 				'aurelia-history-browser',
 				'aurelia-logging-console',
 				'bootstrap',
-				'bootstrap/css/bootstrap.css!text',
+				'bootstrap/css/bootstrap.min.css!text',
+				'bootstrap-switch',
+				'bootstrap-switch/dist/css/bootstrap3/bootstrap-switch.min.css!text',
 				'fetch',
-				'jquery'
+				'jquery',
+				'text'
 			],
 			options: {
 				inject: true,
