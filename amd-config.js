@@ -23,4 +23,16 @@ function register(mods) {
 	});
 }
 
-register(['//unpkg.com/arcgis-server-store']);
+register([
+	'//unpkg.com/arcgis-server-store',
+
+	'dgrid/OnDemandGrid',
+	'dgrid/Keyboard',
+	'dgrid/extensions/ColumnHider',
+	'dgrid/extensions/ColumnReorder',
+	'dgrid/extensions/ColumnResizer',
+
+	'dojo/_base/declare',
+	'dojo/date/locale',
+	'dojo/number'
+]);

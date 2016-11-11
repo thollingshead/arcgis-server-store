@@ -31,6 +31,7 @@ System.config({
 		'aurelia-templating-router': 'npm:aurelia-templating-router@1.0.0-rc.1.0.0',
 		'bootstrap': 'github:twbs/bootstrap@3.3.6',
 		'bootstrap-switch': 'github:nostalgiaz/bootstrap-switch@3.3.2',
+		'debounce': 'npm:debounce@1.0.0',
 		'fetch': 'github:github/fetch@1.0.0',
 		'font-awesome': 'npm:font-awesome@4.6.3',
 		'text': 'github:systemjs/plugin-text@0.0.8',
@@ -184,6 +185,9 @@ System.config({
 			'ieee754': 'npm:ieee754@1.1.6',
 			'isarray': 'npm:isarray@1.0.0',
 			'process': 'github:jspm/nodelibs-process@0.1.2'
+		},
+		'npm:debounce@1.0.0': {
+			'date-now': 'npm:date-now@1.0.1'
 		},
 		'npm:font-awesome@4.6.3': {
 			'css': 'github:systemjs/plugin-css@0.1.32'
