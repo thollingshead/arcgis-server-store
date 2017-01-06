@@ -4,6 +4,7 @@ define([
 	'dojo/_base/lang',
 
 	'dojo/Deferred',
+	'dojo/Evented',
 	'dojo/promise/all',
 	'dojo/store/util/QueryResults',
 	'dojo/when',
@@ -12,7 +13,7 @@ define([
 	'esri/tasks/query'
 ], function(
 	array, declare, lang,
-	Deferred, all, QueryResults, when,
+	Deferred, Evented, all, QueryResults, when,
 	esriRequest, Query
 ) {
 
@@ -290,7 +291,7 @@ define([
 		};
 	};
 
-	return declare(null, {
+	return declare([Evented], {
 		/**
 		 * Identity property. Values should be unique
 		 * @type {String}
@@ -336,7 +337,12 @@ define([
 					callbackParamName: 'callback'
 				}).then(lang.hitch(this, '_initStore'));
 			} else {
-				throw new Error('Missing required property: \'url\'.');
+				var errorObject = new Error('Missing required property: \'url\'.');
+
+				// Fire error event
+				this.emit('error', errorObject);
+
+				throw errorObject;
 			}
 
 			// Wrap functions until loaded
@@ -892,6 +898,9 @@ define([
 
 			// Set loaded
 			this._loaded = true;
+
+			// Fire load event
+			this.emit('load', this);
 		},
 		/**
 		 * Parses an object hash to a SQL where clause
