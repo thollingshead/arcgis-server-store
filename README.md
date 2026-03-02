@@ -5,6 +5,37 @@ An implementation of the
 for ArcGIS Server REST services.
 
 
+## Overview
+
+ArcGISServerStore is a Dojo AMD module that acts as a bridge between Dojo 
+applications and [ArcGIS Server Feature Services](http://resources.arcgis.com/en/help/arcgis-rest-api/). 
+It translates standard dojo/store operations into ArcGIS Server REST API calls, 
+allowing you to work with geographic feature data using familiar Dojo patterns.
+
+**Key behaviors:**
+
+- **Asynchronous operations** — All store methods return promises, deferring 
+  execution until the service's metadata has loaded.
+- **Capability detection** — On creation, the store fetches the service's 
+  metadata and inspects its `capabilities` (Data, Query, Create, Update, Delete, 
+  Editing). Operations unsupported by the service throw a descriptive error.
+- **Attribute flattening** — When `flatten` is `true` (default), ArcGIS feature 
+  attributes are promoted to top-level object properties for easier use with 
+  Dojo widgets. The reverse transformation is applied before sending data back 
+  to the service.
+- **Query conversion** — Plain JavaScript objects passed to `query()` are 
+  automatically converted to SQL `WHERE` clauses (with `LIKE` support for 
+  `RegExp` values). Alternatively, an `esri/tasks/query` object may be passed 
+  directly.
+- **Pagination** — `query()` supports `start` and `count` options. If the 
+  service supports advanced query pagination it is used natively; otherwise the 
+  store falls back to fetching object IDs and slicing the result set manually.
+- **Transactions** — `transaction()` returns an object with `commit` and `abort` 
+  methods. While a transaction is open, `add`, `put`, and `remove` operations 
+  are queued and sent to the service as a single `applyEdits` request on 
+  `commit`, or discarded on `abort`.
+
+
 ## Features
 
 - Add, delete, update and query feature services.
