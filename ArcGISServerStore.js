@@ -4,6 +4,7 @@ define([
 	'dojo/_base/lang',
 
 	'dojo/Deferred',
+	'dojo/Evented',
 	'dojo/promise/all',
 	'dojo/store/util/QueryResults',
 	'dojo/when',
@@ -12,7 +13,7 @@ define([
 	'esri/tasks/query'
 ], function(
 	array, declare, lang,
-	Deferred, all, QueryResults, when,
+	Deferred, Evented, all, QueryResults, when,
 	esriRequest, Query
 ) {
 
@@ -290,7 +291,7 @@ define([
 		};
 	};
 
-	return declare(null, {
+	return declare([Evented], {
 		/**
 		 * Identity property. Values should be unique
 		 * @type {String}
@@ -338,6 +339,14 @@ define([
 			} else {
 				throw new Error('Missing required property: \'url\'.');
 			}
+
+			/**
+			 * A promise that resolves when the store has finished initializing.
+			 * Use this to be notified when service info has been loaded and the
+			 * store is ready for use.
+			 * @type {Promise}
+			 */
+			this.ready = loadPromise;
 
 			// Wrap functions until loaded
 			var get = this.get;
@@ -892,6 +901,9 @@ define([
 
 			// Set loaded
 			this._loaded = true;
+
+			// Notify listeners that the store has finished initializing
+			this.emit('load', {});
 		},
 		/**
 		 * Parses an object hash to a SQL where clause
