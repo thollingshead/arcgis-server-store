@@ -279,6 +279,89 @@ define([
 	});
 
 	registerSuite({
+		name: 'ready',
+		setup: function() {
+			MockMapService.start();
+			MockFeatureService.start();
+		},
+		teardown: function() {
+			MockMapService.stop();
+			MockFeatureService.stop();
+		},
+		'ready is a promise': function() {
+			// Setup
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			assert.isFunction(store.ready.then, 'ready should be a thenable promise');
+		},
+		'ready resolves after _serviceInfo and _loaded are set': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			store.ready.then(dfd.callback(function() {
+				assert.isDefined(store._serviceInfo, '_serviceInfo should be set when ready resolves');
+				assert.isTrue(store._loaded, '_loaded should be true when ready resolves');
+			}), dfd.reject.bind(dfd));
+		},
+		'ready resolves if store already loaded': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Wait for initial load, then subscribe to ready again
+			store.ready.then(lang.hitch(this, function() {
+				// Subscribe to ready after it has already resolved
+				store.ready.then(dfd.callback(function() {
+					assert.isTrue(store._loaded, '_loaded should still be true');
+				}), dfd.reject.bind(dfd));
+			}), dfd.reject.bind(dfd));
+		},
+		'load event fires after _serviceInfo and _loaded are set': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+
+			// Test
+			store.on('load', dfd.callback(function() {
+				assert.isDefined(store._serviceInfo, '_serviceInfo should be set when load event fires');
+				assert.isTrue(store._loaded, '_loaded should be true when load event fires');
+			}));
+		},
+		'load event fires exactly once': function() {
+			// Setup
+			var dfd = this.async(1000);
+
+			var store = new ArcGISServerStore({
+				url: mapService
+			});
+			var fireCount = 0;
+
+			store.on('load', function() {
+				fireCount++;
+			});
+
+			// Test - after ready resolves, verify the event fired exactly once
+			store.ready.then(dfd.callback(function() {
+				assert.strictEqual(fireCount, 1, 'load event should fire exactly once');
+			}), dfd.reject.bind(dfd));
+		}
+	});
+
+	registerSuite({
 		name: '_flatten',
 		setup: function() {
 			MockMapService.start();
